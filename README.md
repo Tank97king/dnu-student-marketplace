@@ -216,7 +216,7 @@ Frontend sẽ chạy tại `http://localhost:3000`
 
 ## Tác giả
 
-Dự án được phát triển cho sinh viên Đại học Đà Nẵng
+Dự án được phát triển cho sinh viên Đại học Đại Nam
 
 ## License
 
