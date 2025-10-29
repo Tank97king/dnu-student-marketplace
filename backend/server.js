@@ -19,6 +19,7 @@ const messageRoutes = require('./routes/message');
 const adminRoutes = require('./routes/admin');
 const commentRoutes = require('./routes/comment');
 const notificationRoutes = require('./routes/notification');
+const reviewRoutes = require('./routes/review');
 
 const app = express();
 const server = http.createServer(app);
@@ -106,6 +107,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

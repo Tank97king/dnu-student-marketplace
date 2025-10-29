@@ -64,6 +64,44 @@ export const createProduct = createAsyncThunk(
   }
 )
 
+// Update product
+export const updateProduct = createAsyncThunk(
+  'product/updateProduct',
+  async ({ id, ...productData }, { rejectWithValue }) => {
+    try {
+      const formData = new FormData()
+      
+      // Add text fields
+      Object.keys(productData).forEach(key => {
+        if (key !== 'images' && key !== 'newImages') {
+          if (productData[key] !== undefined && productData[key] !== null) {
+            formData.append(key, productData[key])
+          }
+        }
+      })
+
+      // Add existing images as JSON string (backend will parse)
+      if (productData.images && Array.isArray(productData.images)) {
+        formData.append('images', JSON.stringify(productData.images))
+      }
+
+      // Add new image files
+      if (productData.newImages && productData.newImages.length > 0) {
+        productData.newImages.forEach(file => {
+          formData.append('images', file)
+        })
+      }
+
+      const response = await api.put(`/products/${id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      return response.data
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Cập nhật sản phẩm thất bại')
+    }
+  }
+)
+
 const productSlice = createSlice({
   name: 'product',
   initialState,
@@ -104,6 +142,21 @@ const productSlice = createSlice({
         state.error = null
       })
       .addCase(createProduct.rejected, (state, action) => {
+        state.error = action.payload
+      })
+      .addCase(updateProduct.pending, (state) => {
+        state.loading = true
+      })
+      .addCase(updateProduct.fulfilled, (state, action) => {
+        state.loading = false
+        state.error = null
+        // Update product in state if it's the current product
+        if (state.product && state.product._id === action.payload.data._id) {
+          state.product = action.payload.data
+        }
+      })
+      .addCase(updateProduct.rejected, (state, action) => {
+        state.loading = false
         state.error = action.payload
       })
   }

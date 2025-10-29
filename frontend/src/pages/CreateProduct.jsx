@@ -19,17 +19,64 @@ export default function CreateProduct() {
     tags: '',
     images: []
   })
+  const [imageError, setImageError] = useState('')
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
   const handleImageChange = (e) => {
-    setFormData({ ...formData, images: Array.from(e.target.files) })
+    setImageError('')
+    const files = Array.from(e.target.files)
+    
+    // Kiểm tra số lượng ảnh
+    if (files.length > 5) {
+      setImageError('Tối đa 5 ảnh cho mỗi sản phẩm')
+      e.target.value = '' // Reset input
+      return
+    }
+
+    // Kiểm tra từng file
+    const maxSize = 2 * 1024 * 1024 // 2MB
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    
+    const invalidFiles = files.filter(file => {
+      if (file.size > maxSize) {
+        return true
+      }
+      if (!allowedTypes.includes(file.type)) {
+        return true
+      }
+      return false
+    })
+
+    if (invalidFiles.length > 0) {
+      const invalidNames = invalidFiles.map(f => f.name).join(', ')
+      if (invalidFiles.some(f => f.size > maxSize)) {
+        setImageError(`Các file sau vượt quá 2MB: ${invalidNames}`)
+      } else {
+        setImageError(`Chỉ cho phép ảnh định dạng JPG, PNG hoặc WebP. File không hợp lệ: ${invalidNames}`)
+      }
+      e.target.value = '' // Reset input
+      return
+    }
+
+    setFormData({ ...formData, images: files })
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    // Validate images
+    if (formData.images.length === 0) {
+      setImageError('Vui lòng chọn ít nhất 1 ảnh')
+      return
+    }
+
+    if (imageError) {
+      return
+    }
+
     const result = await dispatch(createProduct(formData))
     if (result.type.includes('fulfilled')) {
       setShowSuccessModal(true)
@@ -152,19 +199,44 @@ export default function CreateProduct() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Hình ảnh (tối đa 10 hình) *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Hình ảnh (tối đa 5 hình, mỗi ảnh tối đa 2MB) *
+          </label>
           <input
             type="file"
             multiple
-            accept="image/*"
+            accept="image/jpeg,image/jpg,image/png,image/webp"
             onChange={handleImageChange}
             className="w-full px-4 py-2 border rounded-lg"
+            required={formData.images.length === 0}
           />
-          {formData.images.length > 0 && (
-            <p className="mt-2 text-sm text-gray-500">
-              Đã chọn {formData.images.length} hình ảnh
-            </p>
+          {imageError && (
+            <p className="mt-2 text-sm text-red-600">{imageError}</p>
           )}
+          {formData.images.length > 0 && !imageError && (
+            <div className="mt-2">
+              <p className="text-sm text-gray-700">
+                Đã chọn {formData.images.length}/5 hình ảnh
+              </p>
+              <div className="grid grid-cols-5 gap-2 mt-2">
+                {formData.images.map((file, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={`Preview ${index + 1}`}
+                      className="w-full h-20 object-cover rounded border"
+                    />
+                    <span className="absolute top-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
+                      {(file.size / 1024 / 1024).toFixed(2)}MB
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <p className="mt-2 text-xs text-gray-500">
+            Định dạng: JPG, PNG, WebP | Kích thước: Tối đa 2MB/ảnh | Số lượng: Tối đa 5 ảnh
+          </p>
         </div>
 
         <button

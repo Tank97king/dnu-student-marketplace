@@ -76,6 +76,24 @@ const userSchema = new mongoose.Schema({
   lastSeen: {
     type: Date,
     default: Date.now
+  },
+  followers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  following: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  bio: {
+    type: String,
+    trim: true,
+    maxlength: 300
+  },
+  nickname: {
+    type: String,
+    trim: true,
+    sparse: true
   }
 }, {
   timestamps: true

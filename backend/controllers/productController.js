@@ -22,6 +22,14 @@ exports.createProduct = async (req, res) => {
 
     // Handle image uploads if provided
     if (req.files && req.files.length > 0) {
+      // Kiểm tra số lượng ảnh
+      if (req.files.length > 5) {
+        return res.status(400).json({
+          success: false,
+          message: 'Tối đa 5 ảnh cho mỗi sản phẩm'
+        });
+      }
+
       try {
         const uploadPromises = req.files.map(file => 
           uploadToCloudinary(file.buffer, 'dnu-marketplace/products')
@@ -92,9 +100,9 @@ exports.getProducts = async (req, res) => {
       if (maxPrice) query.price.$lte = Number(maxPrice);
     }
     
-    // Status
+    // Status - chỉ hiển thị sản phẩm Available và đã được duyệt
     query.status = 'Available';
-    query.isApproved = true; // Chỉ hiển thị sản phẩm đã được duyệt
+    query.isApproved = true; // Chỉ hiển thị sản phẩm đã được duyệt (áp dụng cho tất cả)
 
     // Sort
     const sortOptions = {
@@ -141,7 +149,11 @@ exports.getProducts = async (req, res) => {
 // @access  Public
 exports.getProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id)
+    const product = await Product.findOne({
+      _id: req.params.id,
+      isApproved: true,  // Chỉ cho phép xem sản phẩm đã được duyệt
+      status: { $ne: 'Deleted' }  // Không cho phép xem sản phẩm đã xóa
+    })
       .populate('userId', 'name avatar phone studentId rating')
       .populate('comments.userId', 'name avatar');
 
@@ -191,16 +203,31 @@ exports.updateProduct = async (req, res) => {
     }
 
     // Update fields
-    const { title, description, price, category, condition, tags, location, images } = req.body;
+    const { title, description, price, category, condition, tags, location } = req.body;
     
     if (title) product.title = title;
     if (description) product.description = description;
-    if (price) product.price = price;
+    if (price !== undefined) product.price = price;
     if (category) product.category = category;
     if (condition) product.condition = condition;
     if (tags) product.tags = tags.split(',').map(tag => tag.trim());
     if (location) product.location = location;
-    if (images) product.images = images;
+
+    // Handle images - có thể là JSON string hoặc array
+    let imagesToKeep = product.images || [];
+    if (req.body.images) {
+      try {
+        // Thử parse nếu là JSON string
+        const parsedImages = typeof req.body.images === 'string' 
+          ? JSON.parse(req.body.images) 
+          : req.body.images;
+        if (Array.isArray(parsedImages)) {
+          imagesToKeep = parsedImages;
+        }
+      } catch (e) {
+        // Nếu không parse được, giữ nguyên images hiện tại
+      }
+    }
 
     // Handle new image uploads
     if (req.files && req.files.length > 0) {
@@ -208,7 +235,30 @@ exports.updateProduct = async (req, res) => {
         uploadToCloudinary(file.buffer, 'dnu-marketplace/products')
       );
       const results = await Promise.all(uploadPromises);
-      product.images = [...product.images, ...results.map(result => result.secure_url)];
+      const newImages = results.map(result => result.secure_url);
+      
+      // Giới hạn tổng số ảnh không quá 5
+      const totalImages = imagesToKeep.length + newImages.length;
+      
+      if (totalImages > 5) {
+        return res.status(400).json({
+          success: false,
+          message: `Tổng số ảnh không được vượt quá 5. Hiện tại có ${imagesToKeep.length} ảnh, bạn đang thêm ${newImages.length} ảnh.`
+        });
+      }
+      
+      product.images = [...imagesToKeep, ...newImages];
+    } else {
+      // Nếu không có ảnh mới, cập nhật danh sách ảnh hiện tại
+      product.images = imagesToKeep;
+    }
+
+    // Đảm bảo có ít nhất 1 ảnh
+    if (!product.images || product.images.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sản phẩm phải có ít nhất 1 ảnh'
+      });
     }
 
     product = await product.save();

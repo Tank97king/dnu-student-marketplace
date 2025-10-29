@@ -33,7 +33,7 @@ exports.getUserProfile = async (req, res) => {
 // @access  Private
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, phone, address, avatar, studentId } = req.body;
+    const { name, phone, address, avatar, studentId, bio, nickname } = req.body;
     const userId = req.user.id;
 
     // Validation
@@ -59,6 +59,17 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
+    // Validate bio length (max 60 words)
+    if (bio) {
+      const wordCount = bio.trim().split(/\s+/).filter(word => word.length > 0).length;
+      if (wordCount > 60) {
+        return res.status(400).json({
+          success: false,
+          message: 'Giới thiệu không được vượt quá 60 từ'
+        });
+      }
+    }
+
     const user = await User.findById(userId);
 
     if (!user) {
@@ -74,6 +85,8 @@ exports.updateProfile = async (req, res) => {
     if (address) user.address = address.trim();
     if (avatar) user.avatar = avatar.trim();
     if (studentId) user.studentId = studentId.trim();
+    if (bio !== undefined) user.bio = bio.trim();
+    if (nickname) user.nickname = nickname.trim().toLowerCase().replace(/\s+/g, '-');
 
     console.log('Updating user avatar:', avatar ? 'Avatar provided' : 'No avatar');
     console.log('Avatar length:', avatar ? avatar.length : 0);
@@ -225,6 +238,202 @@ exports.getUserStats = async (req, res) => {
         activeProducts: productsCount,
         soldProducts: soldCount,
         reviews: reviews.length
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get public user profile
+// @route   GET /api/users/:userId/public
+// @access  Public
+exports.getUserPublicProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId)
+      .select('-password -verificationToken -resetPasswordToken -resetPasswordExpire')
+      .populate('followers', 'name avatar')
+      .populate('following', 'name avatar');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
+
+    // Tính join date
+    const joinDate = new Date(user.createdAt);
+    const now = new Date();
+    const years = now.getFullYear() - joinDate.getFullYear();
+    const months = now.getMonth() - joinDate.getMonth();
+    const joinDuration = years > 0 
+      ? `${years} năm ${months > 0 ? months : 0} tháng`
+      : `${months} tháng`;
+
+    res.json({
+      success: true,
+      data: {
+        ...user.toObject(),
+        followersCount: user.followers.length,
+        followingCount: user.following.length,
+        joinDuration
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get user products by status
+// @route   GET /api/users/:userId/products
+// @access  Public
+exports.getUserProducts = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { status = 'Available', page = 1, limit = 12 } = req.query;
+
+    const query = { 
+      userId,
+      status: { $ne: 'Deleted' },  // Không hiển thị sản phẩm đã xóa
+      isApproved: true  // Chỉ hiển thị sản phẩm đã được duyệt (áp dụng cho tất cả)
+    };
+    
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const products = await Product.find(query)
+      .populate('userId', 'name avatar')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Product.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: products,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / limit),
+        total,
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Follow user
+// @route   POST /api/users/:userId/follow
+// @access  Private
+exports.followUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user.id;
+
+    if (userId === currentUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bạn không thể theo dõi chính mình'
+      });
+    }
+
+    const userToFollow = await User.findById(userId);
+    const currentUser = await User.findById(currentUserId);
+
+    if (!userToFollow || !currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
+
+    // Check if already following
+    if (userToFollow.followers.includes(currentUserId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bạn đã theo dõi người dùng này rồi'
+      });
+    }
+
+    // Add to following and followers
+    userToFollow.followers.push(currentUserId);
+    currentUser.following.push(userId);
+
+    await userToFollow.save();
+    await currentUser.save();
+
+    res.json({
+      success: true,
+      message: 'Đã theo dõi người dùng',
+      data: {
+        followersCount: userToFollow.followers.length,
+        followingCount: currentUser.following.length
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Unfollow user
+// @route   DELETE /api/users/:userId/follow
+// @access  Private
+exports.unfollowUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user.id;
+
+    const userToUnfollow = await User.findById(userId);
+    const currentUser = await User.findById(currentUserId);
+
+    if (!userToUnfollow || !currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
+
+    // Check if not following
+    if (!userToUnfollow.followers.includes(currentUserId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bạn chưa theo dõi người dùng này'
+      });
+    }
+
+    // Remove from following and followers
+    userToUnfollow.followers = userToUnfollow.followers.filter(
+      id => id.toString() !== currentUserId
+    );
+    currentUser.following = currentUser.following.filter(
+      id => id.toString() !== userId
+    );
+
+    await userToUnfollow.save();
+    await currentUser.save();
+
+    res.json({
+      success: true,
+      message: 'Đã bỏ theo dõi người dùng',
+      data: {
+        followersCount: userToUnfollow.followers.length,
+        followingCount: currentUser.following.length
       }
     });
   } catch (error) {

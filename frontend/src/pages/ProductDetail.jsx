@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchProduct } from '../store/slices/productSlice'
+import { addToFavorites, removeFromFavorites, fetchFavorites } from '../store/slices/userSlice'
 import api from '../utils/api'
+import ReviewSection from '../components/ReviewSection'
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -10,17 +12,37 @@ export default function ProductDetail() {
   const navigate = useNavigate()
   const { product, loading } = useSelector(state => state.product)
   const { user } = useSelector(state => state.auth)
+  const { favorites } = useSelector(state => state.user)
+  const [isFavorite, setIsFavorite] = useState(false)
   const [comment, setComment] = useState('')
   const [comments, setComments] = useState([])
   const [showImageModal, setShowImageModal] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [mainImageIndex, setMainImageIndex] = useState(0)
   const [imageZoom, setImageZoom] = useState(1)
   const [editingComment, setEditingComment] = useState(null)
   const [editContent, setEditContent] = useState('')
 
   useEffect(() => {
     dispatch(fetchProduct(id))
+    setMainImageIndex(0)
+    setCurrentImageIndex(0)
   }, [dispatch, id])
+
+  // Load favorites for logged in users
+  useEffect(() => {
+    if (user) {
+      dispatch(fetchFavorites())
+    }
+  }, [dispatch, user])
+
+  // Check if product is in favorites
+  useEffect(() => {
+    if (favorites && id) {
+      const favoriteIds = favorites.map(fav => typeof fav === 'object' ? fav._id : fav)
+      setIsFavorite(favoriteIds.includes(id))
+    }
+  }, [favorites, id])
 
   // Load comments separately
   useEffect(() => {
@@ -141,6 +163,27 @@ export default function ProductDetail() {
     navigate(`/chat/${product.userId._id}?productId=${id}`)
   }
 
+  const handleToggleFavorite = async () => {
+    if (!user) {
+      alert('Vui lòng đăng nhập để lưu sản phẩm')
+      navigate('/login')
+      return
+    }
+
+    try {
+      if (isFavorite) {
+        await dispatch(removeFromFavorites(id)).unwrap()
+      } else {
+        await dispatch(addToFavorites(id)).unwrap()
+      }
+      // isFavorite will be updated automatically via useEffect when favorites change
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+      const errorMessage = typeof error === 'string' ? error : error?.message || 'Không thể cập nhật yêu thích'
+      alert(errorMessage)
+    }
+  }
+
   const openImageModal = (index) => {
     setCurrentImageIndex(index)
     setImageZoom(1)
@@ -163,6 +206,36 @@ export default function ProductDetail() {
     }
   }
 
+  const nextMainImage = () => {
+    if (product?.images) {
+      setMainImageIndex((prev) => {
+        const newIndex = prev === product.images.length - 1 ? 0 : prev + 1
+        setCurrentImageIndex(newIndex)
+        return newIndex
+      })
+    }
+  }
+
+  const prevMainImage = () => {
+    if (product?.images) {
+      setMainImageIndex((prev) => {
+        const newIndex = prev === 0 ? product.images.length - 1 : prev - 1
+        setCurrentImageIndex(newIndex)
+        return newIndex
+      })
+    }
+  }
+
+  const selectMainImage = (index) => {
+    setMainImageIndex(index)
+    setCurrentImageIndex(index)
+  }
+
+  const formatPrice = (price) => {
+    if (!price) return '0'
+    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  }
+
   const zoomIn = () => {
     setImageZoom(prev => Math.min(prev + 0.5, 3))
   }
@@ -181,25 +254,75 @@ export default function ProductDetail() {
         <div className="text-center">Đang tải...</div>
       ) : product ? (
         <div className="max-w-6xl mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             {/* Images */}
-            <div>
-              <img
-                src={product.images?.[0] || 'https://via.placeholder.com/500'}
-                alt={product.title}
-                className="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={() => openImageModal(0)}
-              />
+            <div className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] overflow-y-auto">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden relative">
+                <div className="relative w-full flex items-center justify-center overflow-hidden rounded-lg" style={{ minHeight: '300px', maxHeight: '450px' }}>
+                  <img
+                    src={product.images?.[mainImageIndex] || product.images?.[0] || 'https://via.placeholder.com/500'}
+                    alt={product.title}
+                    className="w-full h-auto max-w-full max-h-[450px] object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => openImageModal(mainImageIndex)}
+                    loading="lazy"
+                    style={{ 
+                      maxWidth: '100%',
+                      height: 'auto',
+                      display: 'block'
+                    }}
+                  />
+                  
+                  {/* Navigation Buttons */}
+                  {product.images?.length > 1 && (
+                    <>
+                      <button
+                        onClick={prevMainImage}
+                        className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 rounded-full p-2 shadow-lg transition-all z-10"
+                        aria-label="Ảnh trước"
+                      >
+                        <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={nextMainImage}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 rounded-full p-2 shadow-lg transition-all z-10"
+                        aria-label="Ảnh sau"
+                      >
+                        <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                      
+                      {/* Image Counter */}
+                      <div className="absolute bottom-2 right-2 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+                        {mainImageIndex + 1} / {product.images.length}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+              
+              {/* Thumbnail Gallery */}
               {product.images?.length > 1 && (
                 <div className="grid grid-cols-4 gap-2 mt-4">
-                  {product.images.slice(1, 5).map((img, i) => (
-                    <img 
+                  {product.images.map((img, i) => (
+                    <div 
                       key={i} 
-                      src={img} 
-                      alt={`Product ${i + 1}`} 
-                      className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity" 
-                      onClick={() => openImageModal(i + 1)}
-                    />
+                      className={`bg-white dark:bg-gray-800 rounded-lg p-1 border-2 shadow-sm cursor-pointer transition-all ${
+                        i === mainImageIndex 
+                          ? 'border-orange-500 dark:border-orange-400' 
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-400'
+                      }`}
+                      onClick={() => selectMainImage(i)}
+                    >
+                      <img 
+                        src={img} 
+                        alt={`Product ${i + 1}`} 
+                        className="w-full h-20 md:h-24 object-cover rounded hover:opacity-80 transition-opacity" 
+                        loading="lazy"
+                      />
+                    </div>
                   ))}
                 </div>
               )}
@@ -207,9 +330,9 @@ export default function ProductDetail() {
 
             {/* Product Info */}
             <div>
-              <h1 className="text-3xl font-bold mb-4">{product.title}</h1>
-              <p className="text-4xl font-bold text-primary-600 mb-4">
-                {product.price?.toLocaleString()} VNĐ
+              <h1 className="product-title text-3xl font-bold mb-4">{product.title}</h1>
+              <p className="product-price text-4xl font-bold text-primary-600 mb-4">
+                {formatPrice(product.price)} VNĐ
               </p>
 
               <div className="space-y-3 mb-6">
@@ -232,7 +355,7 @@ export default function ProductDetail() {
                   className="w-12 h-12 rounded-full mr-3"
                 />
                 <div>
-                  <Link to={`/profile/${product.userId?._id}`} className="font-semibold">
+                  <Link to={`/user/${product.userId?._id}`} className="font-semibold hover:text-orange-600">
                     {product.userId?.name}
                   </Link>
                   {product.userId?.studentId && (
@@ -251,19 +374,26 @@ export default function ProductDetail() {
                     >
                       Liên hệ người bán
                     </button>
-                    <button className="px-6 py-3 border rounded-lg hover:bg-gray-50">
-                      ❤️ Yêu thích
+                    <button 
+                      onClick={handleToggleFavorite}
+                      className={`px-6 py-3 border rounded-lg transition-colors ${
+                        isFavorite 
+                          ? 'border-red-500 bg-red-50 text-red-600 hover:bg-red-100' 
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {isFavorite ? '❤️ Đã lưu' : '🤍 Yêu thích'}
                     </button>
                   </>
                 ) : (
                   <>
                     <Link
                       to={`/products/${id}/edit`}
-                      className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 text-center"
+                      className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 text-center block"
                     >
                       Chỉnh sửa
                     </Link>
-                    <button className="px-6 py-3 border rounded-lg hover:bg-gray-50">
+                    <button className="px-6 py-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
                       Đánh dấu đã bán
                     </button>
                   </>
@@ -419,6 +549,17 @@ export default function ProductDetail() {
                 ))
               )}
             </div>
+          </div>
+
+          {/* Review Section */}
+          <div className="mt-8">
+            <ReviewSection 
+              productId={id} 
+              sellerId={product.userId._id}
+              onReviewAdded={(review) => {
+                console.log('New review added:', review);
+              }}
+            />
           </div>
         </div>
       ) : (

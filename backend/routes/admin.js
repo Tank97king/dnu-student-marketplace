@@ -5,7 +5,8 @@ const {
   getPendingProducts,
   approveProduct,
   getReports,
-  getStats
+  getStats,
+  rejectProduct
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -20,6 +21,7 @@ router.get('/users', getUsers);
 router.put('/users/:id', updateUser);
 router.get('/products/pending', getPendingProducts);
 router.put('/products/:id/approve', approveProduct);
+router.put('/products/:id/reject', rejectProduct);
 router.get('/reports', getReports);
 
 module.exports = router;

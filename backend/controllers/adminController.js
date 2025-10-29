@@ -125,8 +125,8 @@ exports.approveProduct = async (req, res) => {
       product.userId,
       'product_approved',
       'Sản phẩm đã được duyệt',
-      `Sản phẩm "${product.name}" của bạn đã được duyệt và hiển thị trên website.`,
-      { productId: product._id, productName: product.name }
+      `Sản phẩm "${product.title}" của bạn đã được duyệt và hiển thị trên website.`,
+      { productId: product._id, productName: product.title }
     );
 
     // Emit socket event
@@ -135,7 +135,7 @@ exports.approveProduct = async (req, res) => {
       io.to(`user-${product.userId}`).emit('new-notification', {
         type: 'product_approved',
         title: 'Sản phẩm đã được duyệt',
-        message: `Sản phẩm "${product.name}" của bạn đã được duyệt và hiển thị trên website.`
+        message: `Sản phẩm "${product.title}" của bạn đã được duyệt và hiển thị trên website.`
       });
     }
 
@@ -208,6 +208,56 @@ exports.getStats = async (req, res) => {
         },
         categoryStats
       }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Reject product
+// @route   PUT /api/admin/products/:id/reject
+// @access  Admin
+exports.rejectProduct = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy sản phẩm'
+      });
+    }
+
+    // Cập nhật trạng thái sản phẩm: đánh dấu là đã từ chối (có thể xóa hoặc đánh dấu)
+    product.status = 'Deleted';
+    product.isApproved = false;
+    await product.save();
+
+    // Create notification for the seller
+    await createNotification(
+      product.userId,
+      'product_rejected',
+      'Sản phẩm đã bị từ chối',
+      `Sản phẩm "${product.title}" của bạn đã bị từ chối.`,
+      { productId: product._id, productName: product.title }
+    );
+
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user-${product.userId}`).emit('new-notification', {
+        type: 'product_rejected',
+        title: 'Sản phẩm đã bị từ chối',
+        message: `Sản phẩm "${product.title}" của bạn đã bị từ chối.`
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Từ chối sản phẩm thành công'
     });
   } catch (error) {
     res.status(500).json({

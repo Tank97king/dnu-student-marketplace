@@ -37,9 +37,11 @@ export const fetchFavorites = createAsyncThunk(
 // Add to favorites
 export const addToFavorites = createAsyncThunk(
   'user/addToFavorites',
-  async (productId, { rejectWithValue }) => {
+  async (productId, { rejectWithValue, dispatch }) => {
     try {
       await api.post(`/users/favorites/${productId}`)
+      // Refresh favorites list after adding
+      await dispatch(fetchFavorites())
       return productId
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Thêm yêu thích thất bại')
@@ -50,9 +52,11 @@ export const addToFavorites = createAsyncThunk(
 // Remove from favorites
 export const removeFromFavorites = createAsyncThunk(
   'user/removeFromFavorites',
-  async (productId, { rejectWithValue }) => {
+  async (productId, { rejectWithValue, dispatch }) => {
     try {
       await api.delete(`/users/favorites/${productId}`)
+      // Refresh favorites list after removing
+      await dispatch(fetchFavorites())
       return productId
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Xóa yêu thích thất bại')
@@ -74,13 +78,13 @@ const userSlice = createSlice({
         state.profile = action.payload.data
       })
       .addCase(fetchFavorites.fulfilled, (state, action) => {
-        state.favorites = action.payload.data
+        state.favorites = action.payload.data || action.payload
       })
-      .addCase(addToFavorites.fulfilled, (state, action) => {
-        state.favorites.push(action.payload)
+      .addCase(addToFavorites.fulfilled, (state) => {
+        // State will be updated by fetchFavorites
       })
-      .addCase(removeFromFavorites.fulfilled, (state, action) => {
-        state.favorites = state.favorites.filter(id => id !== action.payload)
+      .addCase(removeFromFavorites.fulfilled, (state) => {
+        // State will be updated by fetchFavorites
       })
   }
 })

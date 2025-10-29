@@ -13,24 +13,43 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
+    fileSize: 2 * 1024 * 1024, // 2MB per image - tối ưu cho web
+    files: 5 // Tối đa 5 ảnh
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image')) {
+    // Chỉ cho phép các format ảnh phổ biến và tối ưu
+    const allowedMimes = [
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/webp'
+    ];
+    
+    if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Chỉ cho phép tải lên file hình ảnh'));
+      cb(new Error('Chỉ cho phép upload ảnh định dạng JPG, PNG hoặc WebP'));
     }
   }
 });
 
-// Upload to Cloudinary
+// Upload to Cloudinary với compression và resize tối ưu
 const uploadToCloudinary = (buffer, folder = 'dnu-marketplace') => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: folder,
-        resource_type: 'image'
+        resource_type: 'image',
+        // Tối ưu ảnh khi upload - giới hạn kích thước và compress
+        transformation: [
+          {
+            width: 1920,
+            height: 1920,
+            crop: 'limit', // Giới hạn max size, không crop
+            quality: 'auto:good', // Tự động optimize quality với chất lượng tốt
+            fetch_format: 'auto' // Tự động chọn format tốt nhất (WebP nếu hỗ trợ)
+          }
+        ]
       },
       (error, result) => {
         if (error) {

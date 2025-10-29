@@ -5,6 +5,10 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null)
   const [products, setProducts] = useState([])
   const [users, setUsers] = useState([])
+  const [filteredUsers, setFilteredUsers] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [showUserModal, setShowUserModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [showProductModal, setShowProductModal] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
@@ -73,9 +77,32 @@ export default function AdminDashboard() {
     try {
       const response = await api.get('/admin/users')
       setUsers(response.data.data)
+      setFilteredUsers(response.data.data)
     } catch (error) {
       console.error('Error fetching users:', error)
     }
+  }
+
+  const handleSearchUsers = (e) => {
+    const query = e.target.value.toLowerCase()
+    setSearchQuery(query)
+    
+    if (query.trim() === '') {
+      setFilteredUsers(users)
+    } else {
+      const filtered = users.filter(user => 
+        user.name?.toLowerCase().includes(query) ||
+        user.email?.toLowerCase().includes(query) ||
+        user.phone?.toLowerCase().includes(query) ||
+        user.studentId?.toLowerCase().includes(query)
+      )
+      setFilteredUsers(filtered)
+    }
+  }
+
+  const viewUser = (user) => {
+    setSelectedUser(user)
+    setShowUserModal(true)
   }
 
   const approveProduct = async (id) => {
@@ -207,31 +234,59 @@ export default function AdminDashboard() {
 
       {/* Users */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold mb-4">Người dùng</h2>
-        {users.length > 0 ? (
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Người dùng</h2>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Tìm kiếm người dùng theo tên, email, số điện thoại..."
+            value={searchQuery}
+            onChange={handleSearchUsers}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {filteredUsers.length > 0 ? (
           <div className="space-y-4">
-            {users.slice(0, 10).map((user) => (
-              <div key={user._id} className="border rounded-lg p-4">
+            {filteredUsers.map((user) => (
+              <div 
+                key={user._id} 
+                className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                onClick={() => viewUser(user)}
+              >
                 <div className="flex items-center">
                   <img
                     src={user.avatar || 'https://via.placeholder.com/40'}
+                    alt={user.name}
                     className="w-10 h-10 rounded-full mr-4"
                   />
-                  <div>
+                  <div className="flex-1">
                     <p className="font-semibold">{user.name}</p>
                     <p className="text-sm text-gray-500">{user.email}</p>
                   </div>
-                  {!user.isActive && (
-                    <span className="ml-auto bg-red-100 text-red-800 px-2 py-1 rounded text-sm">
-                      Đã khóa
-                    </span>
-                  )}
+                  <div className="flex items-center space-x-2">
+                    {user.isAdmin && (
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                        Admin
+                      </span>
+                    )}
+                    {!user.isActive && (
+                      <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-sm">
+                        Đã khóa
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-gray-500">Không có người dùng</p>
+          <p className="text-gray-500">
+            {searchQuery ? 'Không tìm thấy người dùng nào' : 'Không có người dùng'}
+          </p>
         )}
       </div>
 
@@ -363,6 +418,136 @@ export default function AdminDashboard() {
                 className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
               >
                 Duyệt sản phẩm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Detail Modal */}
+      {showUserModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">Thông tin người dùng</h3>
+              <button
+                onClick={() => setShowUserModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* User Avatar and Basic Info */}
+              <div className="flex items-center space-x-4 pb-4 border-b">
+                <img
+                  src={selectedUser.avatar || 'https://via.placeholder.com/100'}
+                  alt={selectedUser.name}
+                  className="w-24 h-24 rounded-full"
+                />
+                <div>
+                  <h4 className="text-xl font-bold">{selectedUser.name}</h4>
+                  <p className="text-gray-600">{selectedUser.email}</p>
+                  <div className="flex items-center space-x-2 mt-2">
+                    {selectedUser.isAdmin && (
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                        Admin
+                      </span>
+                    )}
+                    {selectedUser.isActive ? (
+                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                        Đang hoạt động
+                      </span>
+                    ) : (
+                      <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
+                        Đã khóa
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* User Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-gray-700">Số điện thoại:</h4>
+                  <p className="text-gray-900">{selectedUser.phone || 'Chưa cập nhật'}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-700">Mã số sinh viên:</h4>
+                  <p className="text-gray-900">{selectedUser.studentId || 'Chưa cập nhật'}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-700">Địa chỉ:</h4>
+                  <p className="text-gray-900">{selectedUser.address || 'Chưa cập nhật'}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-700">Ngày đăng ký:</h4>
+                  <p className="text-gray-900">
+                    {new Date(selectedUser.createdAt).toLocaleDateString('vi-VN')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Rating Info */}
+              {selectedUser.rating && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold text-gray-700 mb-2">Đánh giá:</h4>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p>
+                      <span className="font-semibold">Điểm trung bình:</span>{' '}
+                      {selectedUser.rating.average?.toFixed(1) || '0.0'}/5.0
+                    </p>
+                    <p>
+                      <span className="font-semibold">Số đánh giá:</span>{' '}
+                      {selectedUser.rating.count || 0}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Follow Info */}
+              <div className="border-t pt-4">
+                <h4 className="font-semibold text-gray-700 mb-2">Tương tác:</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="font-semibold">{selectedUser.followers?.length || 0}</p>
+                    <p className="text-sm text-gray-600">Người theo dõi</p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="font-semibold">{selectedUser.following?.length || 0}</p>
+                    <p className="text-sm text-gray-600">Đang theo dõi</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bio */}
+              {selectedUser.bio && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold text-gray-700 mb-2">Giới thiệu:</h4>
+                  <p className="text-gray-900">{selectedUser.bio}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
+              <a
+                href={`/user/${selectedUser._id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                Xem trang cá nhân
+              </a>
+              <button
+                onClick={() => setShowUserModal(false)}
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"
+              >
+                Đóng
               </button>
             </div>
           </div>
