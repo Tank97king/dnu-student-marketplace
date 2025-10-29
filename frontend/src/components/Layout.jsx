@@ -79,7 +79,7 @@ export default function Layout({ children }) {
       <footer className="bg-white dark:bg-gray-800 border-t dark:border-gray-700 mt-auto">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <p className="text-center text-gray-500 dark:text-gray-400">
-            © 2025 DNU Marketplace. Mua bán đồ dùng cũ dành cho sinh viên Đại học Đà Nẵng.
+            © 2025 DNU Marketplace. Mua bán đồ dùng cũ dành cho sinh viên Đại học Đại Nam.
           </p>
         </div>
       </footer>

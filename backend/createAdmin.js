@@ -38,7 +38,7 @@ const createAdmin = async () => {
       phone: '0123456789',
       password: 'admin123456',
       studentId: '0000000000',
-      address: 'Đại học Đà Nẵng',
+      address: 'Đại học Đại Nam',
       isAdmin: true,
       isVerified: true,
       isActive: true

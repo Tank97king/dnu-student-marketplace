@@ -1,7 +1,7 @@
 {
   "name": "dnu-marketplace-backend",
   "version": "1.0.0",
-  "description": "Backend cho ứng dụng mua bán đồ dùng cũ của sinh viên Đại học Đà Nẵng",
+  "description": "Backend cho ứng dụng mua bán đồ dùng cũ của sinh viên Đại học Đại Nam",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

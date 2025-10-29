@@ -1,8 +1,8 @@
-# DNU Marketplace - Ứng dụng mua bán đồ dùng cũ cho sinh viên Đại học Đà Nẵng
+# DNU Marketplace - Ứng dụng mua bán đồ dùng cũ cho sinh viên Đại học Đại Nam
 
 ## Mô tả dự án
 
-DNU Marketplace là một nền tảng web cho phép sinh viên Đại học Đà Nẵng mua bán trao đổi đồ dùng cũ (sách, đồ điện tử, nội thất, quần áo, v.v.) một cách an toàn và thuận tiện.
+DNU Marketplace là một nền tảng web cho phép sinh viên Đại học Đại Nam mua bán trao đổi đồ dùng cũ (sách, đồ điện tử, nội thất, quần áo, v.v.) một cách an toàn và thuận tiện.
 
 ## Tính năng chính
 
@@ -216,7 +216,7 @@ Frontend sẽ chạy tại `http://localhost:3000`
 
 ## Tác giả
 
-Dự án được phát triển cho sinh viên Đại học Đà Nẵng
+Dự án được phát triển cho sinh viên Đại học Đại Nam
 
 ## License
 
