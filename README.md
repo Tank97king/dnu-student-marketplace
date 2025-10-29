@@ -1,4 +1,4 @@
-# DNU Marketplace - Ứng dụng mua bán đồ dùng cũ cho sinh viên Đại học Đà Nẵng
+# DNU Marketplace - Ứng dụng mua bán đồ dùng cũ cho sinh viên Đại học Đại Nam
 
 ## Mô tả dự án
 
