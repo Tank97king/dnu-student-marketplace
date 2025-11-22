@@ -12,8 +12,84 @@ export default function Products() {
     category: '',
     location: '',
     minPrice: '',
-    maxPrice: ''
+    maxPrice: '',
+    condition: '',
+    dateRange: '', // 'today', 'week', 'month', 'all'
+    subcategory: ''
   })
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  const [priceRange, setPriceRange] = useState([0, 10000000]) // Min và Max giá
+  
+  // Subcategories cho tất cả các danh mục
+  const categorySubcategories = {
+    Electronics: [
+      { value: '', label: 'Tất cả loại điện tử' },
+      { value: 'điện thoại smartphone iphone android', label: 'Điện thoại' },
+      { value: 'máy tính bảng tablet ipad', label: 'Máy tính bảng' },
+      { value: 'laptop máy tính xách tay notebook', label: 'Laptop' },
+      { value: 'máy tính để bàn desktop pc', label: 'Máy tính để bàn' },
+      { value: 'máy ảnh camera máy quay camcorder', label: 'Máy ảnh, Máy quay' },
+      { value: 'tivi tv âm thanh loa speaker', label: 'Tivi, Âm thanh' },
+      { value: 'đồng hồ thông minh smartwatch thiết bị đeo', label: 'Thiết bị đeo thông minh' },
+      { value: 'màn hình monitor phụ kiện điện tử', label: 'Phụ kiện (Màn hình,...)' },
+      { value: 'ram cpu card linh kiện', label: 'Linh kiện (RAM,...)' }
+    ],
+    Books: [
+      { value: '', label: 'Tất cả loại sách' },
+      { value: 'giáo trình đại học môn học ngành', label: 'Sách giáo trình đại học' },
+      { value: 'tham khảo bài tập đề cương ôn thi', label: 'Sách tham khảo, bài tập, đề cương' },
+      { value: 'ngoại ngữ toeic ielts hsk', label: 'Sách ngoại ngữ (TOEIC, IELTS, HSK)' },
+      { value: 'kỹ năng sống khởi nghiệp', label: 'Sách kỹ năng sống, khởi nghiệp' },
+      { value: 'tiểu thuyết truyện light novel manga', label: 'Tiểu thuyết, truyện, light novel, manga' },
+      { value: 'tạp chí học lập trình marketing', label: 'Tạp chí, sách học lập trình, marketing' }
+    ],
+    Clothing: [
+      { value: '', label: 'Tất cả loại quần áo' },
+      { value: 'áo thun áo sơ mi áo khoác', label: 'Áo thun, áo sơ mi, áo khoác' },
+      { value: 'quần jeans quần tây quần thể thao', label: 'Quần jeans, quần tây, quần thể thao' },
+      { value: 'đồ mùa đông áo hoodie', label: 'Đồ mùa đông, áo hoodie' },
+      { value: 'đồng phục sinh viên áo khoác khoa áo lớp', label: 'Đồng phục sinh viên, áo khoác khoa, áo lớp' },
+      { value: 'giày dép balo túi xách', label: 'Giày, dép, balo, túi xách' },
+      { value: 'phụ kiện mũ nón đồng hồ thắt lưng', label: 'Phụ kiện: mũ, nón, đồng hồ, thắt lưng' }
+    ],
+    Stationery: [
+      { value: '', label: 'Tất cả loại văn phòng phẩm' },
+      { value: 'bút bi bút chì bút highlight', label: 'Bút các loại (bút bi, bút chì, bút highlight)' },
+      { value: 'tập vở sổ tay giấy note', label: 'Tập vở, sổ tay, giấy note' },
+      { value: 'file tài liệu bìa hồ sơ kẹp giấy', label: 'File tài liệu, bìa hồ sơ, kẹp giấy' },
+      { value: 'máy tính cầm tay thước compa', label: 'Máy tính cầm tay, thước, compa' },
+      { value: 'bảng vẽ kẹp tài liệu khay để bút', label: 'Bảng vẽ, kẹp tài liệu, khay để bút' },
+      { value: 'handmade sổ bullet journal sticker', label: 'Sản phẩm handmade học tập (sổ bullet journal, sticker...)' }
+    ],
+    Sports: [
+      { value: '', label: 'Tất cả loại thể thao' },
+      { value: 'bóng đá giày bóng áo đấu', label: 'Bóng đá: giày, bóng, áo đấu' },
+      { value: 'cầu lông vợt cầu túi thể thao', label: 'Cầu lông: vợt, cầu, túi thể thao' },
+      { value: 'gym yoga thảm tập găng tay dây kháng lực', label: 'Gym – Yoga: thảm tập, găng tay, dây kháng lực' },
+      { value: 'xe đạp nón bảo hiểm chai nước thể thao', label: 'Xe đạp, nón bảo hiểm, chai nước thể thao' },
+      { value: 'đồ bơi kính bơi áo khoác thể thao', label: 'Đồ bơi, kính bơi, áo khoác thể thao' },
+      { value: 'đồng hồ đếm bước dây nhảy thiết bị', label: 'Thiết bị nhỏ: đồng hồ đếm bước, dây nhảy' }
+    ],
+    Furniture: [
+      { value: '', label: 'Tất cả loại nội thất' },
+      { value: 'giường nệm chăn ga gối', label: 'Giường, nệm, chăn ga gối' },
+      { value: 'bàn học ghế học đèn bàn', label: 'Bàn học, ghế học, đèn bàn' },
+      { value: 'tủ quần áo kệ sách tab đầu giường', label: 'Tủ quần áo, kệ sách, tab đầu giường' },
+      { value: 'rèm cửa gương thảm trải sàn', label: 'Rèm cửa, gương, thảm trải sàn' },
+      { value: 'bàn ăn mini ghế xếp', label: 'Bàn ăn mini, ghế xếp' },
+      { value: 'tủ lạnh mini kệ chén bếp điện nhỏ', label: 'Tủ lạnh mini, kệ chén, bếp điện nhỏ' },
+      { value: 'kệ để đồ giá phơi quần áo', label: 'Kệ để đồ, giá phơi quần áo' },
+      { value: 'thùng rác kệ giày dép hộp nhựa đựng đồ', label: 'Thùng rác, kệ giày dép, hộp nhựa đựng đồ' },
+      { value: 'tranh treo tường cây cảnh nhỏ', label: 'Tranh treo tường, cây cảnh nhỏ' },
+      { value: 'đồng hồ treo đèn ngủ', label: 'Đồng hồ treo, đèn ngủ' },
+      { value: 'kệ treo tường giá đỡ điện thoại laptop', label: 'Kệ treo tường, giá đỡ điện thoại/laptop' },
+      { value: 'thảm móc treo phụ kiện decor', label: 'Thảm, móc treo, phụ kiện decor nhỏ' }
+    ]
+  }
+
+  // Lấy subcategories theo category hiện tại
+  const currentSubcategories = categorySubcategories[filters.category] || []
+  const hasSubcategories = currentSubcategories.length > 0
 
   // Đọc query params từ URL
   useEffect(() => {
@@ -33,7 +109,84 @@ export default function Products() {
   }, [dispatch, filters])
 
   const handleFilterChange = (e) => {
-    setFilters({ ...filters, [e.target.name]: e.target.value })
+    const newFilters = { ...filters, [e.target.name]: e.target.value }
+    
+    // Nếu đổi category
+    if (e.target.name === 'category') {
+      // Reset subcategory khi đổi category
+      newFilters.subcategory = ''
+      
+      // Nếu search term đang là từ subcategory cũ, xóa nó
+      const oldCategorySubcategories = categorySubcategories[filters.category] || []
+      const isSubcategorySearch = oldCategorySubcategories.some(sc => sc.value && filters.search === sc.value)
+      if (isSubcategorySearch) {
+        newFilters.search = ''
+      }
+    }
+    
+    // Nếu đổi subcategory, cập nhật search term
+    if (e.target.name === 'subcategory') {
+      const categorySubcats = categorySubcategories[newFilters.category] || []
+      const selectedSubcategory = categorySubcats.find(sc => sc.value === e.target.value)
+      if (selectedSubcategory && selectedSubcategory.value) {
+        newFilters.search = selectedSubcategory.value
+      } else {
+        // Nếu chọn "Tất cả loại...", xóa search term từ subcategory
+        const categorySubcatsOld = categorySubcategories[filters.category] || []
+        const isSubcategorySearch = categorySubcatsOld.some(sc => sc.value && filters.search === sc.value)
+        if (isSubcategorySearch) {
+          newFilters.search = ''
+        }
+      }
+    }
+    
+    // Nếu đổi dateRange, cập nhật filter
+    if (e.target.name === 'dateRange') {
+      const now = new Date()
+      let startDate = null
+      
+      switch (e.target.value) {
+        case 'today':
+          startDate = new Date(now.setHours(0, 0, 0, 0))
+          break
+        case 'week':
+          startDate = new Date(now.setDate(now.getDate() - 7))
+          break
+        case 'month':
+          startDate = new Date(now.setMonth(now.getMonth() - 1))
+          break
+        default:
+          startDate = null
+      }
+      
+      if (startDate) {
+        newFilters.dateRange = startDate.toISOString()
+      } else {
+        newFilters.dateRange = ''
+      }
+    }
+    
+    // Cập nhật minPrice và maxPrice từ priceRange
+    if (e.target.name === 'priceRange') {
+      const [min, max] = priceRange
+      newFilters.minPrice = min > 0 ? min : ''
+      newFilters.maxPrice = max < 10000000 ? max : ''
+    }
+    
+    setFilters(newFilters)
+  }
+
+  const handlePriceRangeChange = (e) => {
+    const value = parseInt(e.target.value)
+    const name = e.target.name
+    
+    if (name === 'minPrice') {
+      setPriceRange([value, priceRange[1]])
+      setFilters({ ...filters, minPrice: value > 0 ? value : '' })
+    } else {
+      setPriceRange([priceRange[0], value])
+      setFilters({ ...filters, maxPrice: value < 10000000 ? value : '' })
+    }
   }
 
   const formatPrice = (price) => {
@@ -48,7 +201,17 @@ export default function Products() {
 
         {/* Filters */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Bộ lọc</h2>
+            <button
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+            >
+              {showAdvancedFilters ? 'Ẩn' : 'Hiện'} bộ lọc nâng cao
+            </button>
+          </div>
+          
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${hasSubcategories ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4`}>
             <div>
               <input
                 type="text"
@@ -76,6 +239,23 @@ export default function Products() {
                 <option value="Other">Khác</option>
               </select>
             </div>
+            {/* Subcategory dropdown hiển thị khi category có subcategories */}
+            {hasSubcategories && (
+              <div>
+                <select
+                  name="subcategory"
+                  className="w-full px-4 py-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  value={filters.subcategory}
+                  onChange={handleFilterChange}
+                >
+                  {currentSubcategories.map((subcat) => (
+                    <option key={subcat.value} value={subcat.value}>
+                      {subcat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <select
                 name="location"
@@ -102,6 +282,112 @@ export default function Products() {
               </select>
             </div>
           </div>
+
+          {/* Advanced Filters */}
+          {showAdvancedFilters && (
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+              {/* Price Range */}
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Khoảng giá: {priceRange[0].toLocaleString('vi-VN')} ₫ - {priceRange[1].toLocaleString('vi-VN')} ₫
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <input
+                      type="number"
+                      name="minPrice"
+                      placeholder="Giá tối thiểu"
+                      className="w-full px-3 py-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                      value={filters.minPrice}
+                      onChange={(e) => {
+                        const value = e.target.value ? parseInt(e.target.value) : 0
+                        setPriceRange([value, priceRange[1]])
+                        setFilters({ ...filters, minPrice: e.target.value })
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="number"
+                      name="maxPrice"
+                      placeholder="Giá tối đa"
+                      className="w-full px-3 py-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                      value={filters.maxPrice}
+                      onChange={(e) => {
+                        const value = e.target.value ? parseInt(e.target.value) : 10000000
+                        setPriceRange([priceRange[0], value])
+                        setFilters({ ...filters, maxPrice: e.target.value })
+                      }}
+                    />
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="10000000"
+                  step="100000"
+                  value={priceRange[0]}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value)
+                    setPriceRange([value, priceRange[1]])
+                    setFilters({ ...filters, minPrice: value > 0 ? value : '' })
+                  }}
+                  className="w-full mt-2"
+                />
+                <input
+                  type="range"
+                  min="0"
+                  max="10000000"
+                  step="100000"
+                  value={priceRange[1]}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value)
+                    setPriceRange([priceRange[0], value])
+                    setFilters({ ...filters, maxPrice: value < 10000000 ? value : '' })
+                  }}
+                  className="w-full mt-2"
+                />
+              </div>
+
+              {/* Condition Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Tình trạng
+                </label>
+                <select
+                  name="condition"
+                  className="w-full px-4 py-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  value={filters.condition}
+                  onChange={handleFilterChange}
+                >
+                  <option value="">Tất cả tình trạng</option>
+                  <option value="New">Mới</option>
+                  <option value="Like New">Như mới</option>
+                  <option value="Good">Tốt</option>
+                  <option value="Fair">Khá</option>
+                  <option value="Poor">Kém</option>
+                </select>
+              </div>
+
+              {/* Date Range Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Thời gian đăng
+                </label>
+                <select
+                  name="dateRange"
+                  className="w-full px-4 py-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  value={filters.dateRange}
+                  onChange={handleFilterChange}
+                >
+                  <option value="">Tất cả thời gian</option>
+                  <option value="today">Hôm nay</option>
+                  <option value="week">7 ngày qua</option>
+                  <option value="month">30 ngày qua</option>
+                </select>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Products Grid */}

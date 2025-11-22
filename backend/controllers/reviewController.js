@@ -1,7 +1,10 @@
 const Review = require('../models/Review');
 const Product = require('../models/Product');
 const User = require('../models/User');
+const Order = require('../models/Order');
 const mongoose = require('mongoose');
+const { createAndEmitNotification } = require('../utils/notifications');
+const { uploadToCloudinary } = require('../utils/uploadImage');
 
 // Helper function để cập nhật average rating của user
 const updateUserRating = async (userId) => {
@@ -19,8 +22,14 @@ const updateUserRating = async (userId) => {
 
     if (stats.length > 0) {
       await User.findByIdAndUpdate(userId, {
-        averageRating: Math.round(stats[0].averageRating * 10) / 10,
-        totalReviews: stats[0].totalReviews
+        'rating.average': Math.round(stats[0].averageRating * 10) / 10,
+        'rating.count': stats[0].totalReviews
+      });
+    } else {
+      // Nếu không có review nào, reset về 0
+      await User.findByIdAndUpdate(userId, {
+        'rating.average': 0,
+        'rating.count': 0
       });
     }
   } catch (error) {
@@ -31,31 +40,95 @@ const updateUserRating = async (userId) => {
 // Tạo đánh giá mới
 const createReview = async (req, res) => {
   try {
-    const { transactionId, reviewedUserId, productId, rating, comment, isSeller } = req.body;
+    const { transactionId, reviewedUserId, productId, rating, comment, isSeller, orderId } = req.body;
     const reviewerId = req.user.id;
 
-    // Kiểm tra xem đã đánh giá chưa
-    const existingReview = await Review.findOne({
-      transactionId,
-      reviewerId,
-      reviewedUserId
-    });
+    // Validate order if orderId provided (review based on transaction)
+    if (orderId) {
+      const order = await Order.findById(orderId);
+      if (!order) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy đơn hàng'
+        });
+      }
 
-    if (existingReview) {
-      return res.status(400).json({
-        success: false,
-        message: 'Bạn đã đánh giá giao dịch này rồi'
+      // Check if order is completed
+      if (order.status !== 'completed') {
+        return res.status(400).json({
+          success: false,
+          message: 'Chỉ có thể đánh giá sau khi giao dịch hoàn thành'
+        });
+      }
+
+      // Check if user is part of this order
+      const isBuyer = order.buyerId.toString() === reviewerId;
+      const isSeller = order.sellerId.toString() === reviewerId;
+      
+      if (!isBuyer && !isSeller) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền đánh giá đơn hàng này'
+        });
+      }
+
+      // Check if already reviewed this order
+      const existingReview = await Review.findOne({
+        orderId,
+        reviewerId,
+        reviewedUserId
       });
+
+      if (existingReview) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bạn đã đánh giá giao dịch này rồi'
+        });
+      }
+    } else {
+      // For reviews without order (legacy support)
+      const existingReview = await Review.findOne({
+        transactionId,
+        reviewerId,
+        reviewedUserId
+      });
+
+      if (existingReview) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bạn đã đánh giá giao dịch này rồi'
+        });
+      }
+    }
+
+    // Handle image uploads
+    let reviewImages = [];
+    if (req.files && req.files.length > 0) {
+      try {
+        const uploadPromises = req.files.map(file => 
+          uploadToCloudinary(file.buffer, 'dnu-marketplace/reviews')
+        );
+        const results = await Promise.all(uploadPromises);
+        reviewImages = results.map(result => result.secure_url);
+      } catch (uploadError) {
+        console.error('Error uploading review images:', uploadError);
+        return res.status(500).json({
+          success: false,
+          message: 'Lỗi khi upload hình ảnh'
+        });
+      }
     }
 
     // Tạo review mới
     const review = new Review({
-      transactionId,
+      transactionId: transactionId || orderId?.toString() || `review_${Date.now()}`,
+      orderId: orderId || null,
       reviewerId,
       reviewedUserId,
       productId,
       rating,
       comment,
+      images: reviewImages,
       isSeller
     });
 
@@ -66,6 +139,26 @@ const createReview = async (req, res) => {
 
     // Cập nhật average rating cho user được đánh giá
     await updateUserRating(reviewedUserId);
+
+    // Create notification for product owner if review is for a product
+    try {
+      if (productId) {
+        const product = await Product.findById(productId).populate('userId');
+        if (product && product.userId._id.toString() !== reviewerId.toString()) {
+          const io = req.app.get('io');
+          await createAndEmitNotification(
+            io,
+            product.userId._id,
+            'new_review',
+            'Có đánh giá mới',
+            `${req.user.name} đã đánh giá sản phẩm "${product.title}" của bạn`,
+            { productId: product._id, reviewId: review._id, productName: product.title, rating }
+          );
+        }
+      }
+    } catch (notifError) {
+      console.error('Error creating review notification:', notifError);
+    }
 
     res.status(201).json({
       success: true,
@@ -278,11 +371,53 @@ const getUserReviewStats = async (req, res) => {
   }
 };
 
+// Sync lại rating cho tất cả users (chạy một lần để cập nhật data cũ)
+const syncAllUserRatings = async (req, res) => {
+  try {
+    // Kiểm tra quyền admin
+    if (!req.user || !req.user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ admin mới có quyền thực hiện thao tác này'
+      });
+    }
+
+    // Lấy tất cả users có reviews
+    const usersWithReviews = await Review.distinct('reviewedUserId');
+    
+    let updatedCount = 0;
+    for (const userId of usersWithReviews) {
+      await updateUserRating(userId);
+      updatedCount++;
+    }
+
+    // Reset rating cho users không có reviews
+    await User.updateMany(
+      { _id: { $nin: usersWithReviews } },
+      { 'rating.average': 0, 'rating.count': 0 }
+    );
+
+    res.json({
+      success: true,
+      message: `Đã đồng bộ rating cho ${updatedCount} users`,
+      updatedCount
+    });
+  } catch (error) {
+    console.error('Error syncing user ratings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi đồng bộ rating'
+    });
+  }
+};
+
 module.exports = {
   createReview,
   getProductReviews,
   getUserReviews,
   updateReview,
   deleteReview,
-  getUserReviewStats
+  getUserReviewStats,
+  syncAllUserRatings,
+  updateUserRating // Export để có thể dùng ở nơi khác nếu cần
 };

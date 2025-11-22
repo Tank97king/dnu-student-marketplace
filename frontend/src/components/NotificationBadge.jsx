@@ -1,25 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import io from 'socket.io-client';
 import api from '../utils/api';
 
 export default function NotificationBadge() {
   const { user } = useSelector(state => state.auth);
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
     if (!user) return;
 
+    // Initialize socket
+    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000');
+    setSocket(newSocket);
+
+    // Join user room
+    newSocket.emit('join-room', user.id);
+
+    // Listen for new notifications
+    newSocket.on('new-notification', (notification) => {
+      setNotifications(prev => [notification, ...prev]);
+      setUnreadCount(prev => prev + 1);
+    });
+
+    // Fetch initial notifications
     fetchNotifications();
     fetchUnreadCount();
 
-    // Poll for new notifications every 5 seconds
-    const interval = setInterval(() => {
-      fetchUnreadCount();
-    }, 5000);
-
-    return () => clearInterval(interval);
+    return () => {
+      newSocket.emit('leave-room', user.id);
+      newSocket.disconnect();
+    };
   }, [user]);
 
   const fetchNotifications = async () => {
@@ -62,6 +78,22 @@ export default function NotificationBadge() {
     }
   };
 
+  const handleNotificationClick = (notification) => {
+    if (!notification.isRead) {
+      handleMarkAsRead(notification._id);
+    }
+    setShowDropdown(false);
+
+    // Navigate based on notification type
+    if (notification.data?.productId) {
+      navigate(`/products/${notification.data.productId}`);
+    } else if (notification.type === 'new_message') {
+      navigate('/chat');
+    } else if (notification.type === 'offer_accepted' || notification.type === 'offer_rejected') {
+      navigate('/orders');
+    }
+  };
+
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -83,6 +115,20 @@ export default function NotificationBadge() {
         return '💬';
       case 'new_comment':
         return '💭';
+      case 'new_review':
+        return '⭐';
+      case 'new_offer':
+      case 'offer_countered':
+        return '💰';
+      case 'offer_accepted':
+        return '✅';
+      case 'offer_rejected':
+        return '❌';
+      case 'product_interested':
+      case 'product_favorited':
+        return '❤️';
+      case 'user_followed':
+        return '👤';
       default:
         return '🔔';
     }
@@ -97,7 +143,7 @@ export default function NotificationBadge() {
             fetchNotifications();
           }
         }}
-        className="relative p-2 text-gray-600 hover:text-primary-600 transition-colors"
+        className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-primary-600 transition-colors"
       >
         <svg
           className="w-6 h-6"
@@ -150,11 +196,7 @@ export default function NotificationBadge() {
                     className={`p-4 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer ${
                       !notification.isRead ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                     }`}
-                    onClick={() => {
-                      if (!notification.isRead) {
-                        handleMarkAsRead(notification._id);
-                      }
-                    }}
+                    onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex items-start space-x-3">
                       <span className="text-2xl">
@@ -185,4 +227,5 @@ export default function NotificationBadge() {
     </div>
   );
 }
+
 

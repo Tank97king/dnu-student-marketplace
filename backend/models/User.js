@@ -48,11 +48,17 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isSuperAdmin: {
+    type: Boolean,
+    default: false
+  },
   isActive: {
     type: Boolean,
     default: true
   },
   verificationToken: String,
+  verificationCode: String,
+  verificationCodeExpire: Date,
   resetPasswordToken: String,
   resetPasswordExpire: Date,
   favorites: [{

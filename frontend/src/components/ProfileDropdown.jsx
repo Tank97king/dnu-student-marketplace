@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { logout } from '../store/slices/authSlice';
+import { logout, updateUser } from '../store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
 import StarRating from './StarRating';
+import api from '../utils/api';
 
 export default function ProfileDropdown() {
   const { user } = useSelector(state => state.auth);
@@ -11,6 +12,28 @@ export default function ProfileDropdown() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Fetch user data with followers/following if not present
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user && (!user.followers || !user.following)) {
+        try {
+          const response = await api.get('/auth/me');
+          if (response.data.success && response.data.data) {
+            dispatch(updateUser({
+              followers: response.data.data.followers || [],
+              following: response.data.data.following || [],
+              rating: response.data.data.rating || { average: 0, count: 0 }
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+      }
+    };
+
+    fetchUserData();
+  }, [user, dispatch]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -34,6 +57,10 @@ export default function ProfileDropdown() {
   };
 
   if (!user) return null;
+
+  // Calculate followers and following counts
+  const followersCount = Array.isArray(user?.followers) ? user.followers.length : (user?.followersCount || 0);
+  const followingCount = Array.isArray(user?.following) ? user.following.length : (user?.followingCount || 0);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -98,9 +125,9 @@ export default function ProfileDropdown() {
 
                 {/* Followers/Following */}
                 <div className="flex items-center text-sm text-gray-800 dark:text-gray-200">
-                  <span>{user?.followers?.length || 0} Người theo dõi</span>
+                  <span>{followersCount} Người theo dõi</span>
                   <span className="mx-2">•</span>
-                  <span>{user?.following?.length || 0} Đang theo dõi</span>
+                  <span>{followingCount} Đang theo dõi</span>
                 </div>
                 
                 {/* Edit icon - positioned absolutely */}
@@ -159,7 +186,7 @@ export default function ProfileDropdown() {
             <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-3">Quản lí đơn hàng</h2>
             <div className="space-y-2">
               <Link 
-                to="/orders/purchase" 
+                to="/orders?type=buying" 
                 onClick={() => setIsOpen(false)}
                 className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               >
@@ -170,7 +197,7 @@ export default function ProfileDropdown() {
               </Link>
               
               <Link 
-                to="/orders/sales" 
+                to="/seller-dashboard" 
                 onClick={() => setIsOpen(false)}
                 className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               >
@@ -178,6 +205,17 @@ export default function ProfileDropdown() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span className="text-gray-800 dark:text-gray-200">Đơn bán</span>
+              </Link>
+              
+              <Link 
+                to="/offers?type=received" 
+                onClick={() => setIsOpen(false)}
+                className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-gray-800 dark:text-gray-200">Đề nghị giá</span>
               </Link>
             </div>
           </div>
@@ -198,17 +236,6 @@ export default function ProfileDropdown() {
               </Link>
               
               <Link 
-                to="/saved-searches" 
-                onClick={() => setIsOpen(false)}
-                className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
-                </svg>
-                <span className="text-gray-800 dark:text-gray-200">Tìm kiếm đã lưu</span>
-              </Link>
-              
-              <Link 
                 to={`/user/${user.id}/reviews`} 
                 onClick={() => setIsOpen(false)}
                 className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
@@ -219,6 +246,17 @@ export default function ProfileDropdown() {
                   </svg>
                 </div>
                 <span className="text-gray-800 dark:text-gray-200">Đánh giá từ tôi</span>
+              </Link>
+              
+              <Link 
+                to="/transaction-history" 
+                onClick={() => setIsOpen(false)}
+                className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="text-gray-800 dark:text-gray-200">Lịch sử giao dịch</span>
               </Link>
             </div>
           </div>
@@ -253,17 +291,6 @@ export default function ProfileDropdown() {
               </Link>
               
               <Link 
-                to="/transaction-history" 
-                onClick={() => setIsOpen(false)}
-                className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span className="text-gray-800 dark:text-gray-200">Lịch sử giao dịch</span>
-              </Link>
-              
-              <Link 
                 to="/partner-channel" 
                 onClick={() => setIsOpen(false)}
                 className="flex items-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
@@ -275,32 +302,6 @@ export default function ProfileDropdown() {
                 </div>
                 <span className="text-gray-800 dark:text-gray-200">Kênh Đối Tác</span>
               </Link>
-              
-              <Link 
-                to="/store/create" 
-                onClick={() => setIsOpen(false)}
-                className="flex items-center justify-between p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              >
-                <div className="flex items-center">
-                  <div className="relative mr-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </div>
-                  </div>
-                  <span className="text-gray-800 dark:text-gray-200">Cửa hàng / chuyên trang</span>
-                </div>
-                <div className="flex items-center text-orange-500">
-                  <span className="text-sm mr-1">Tạo ngay</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </Link>
             </div>
           </div>
 
@@ -308,17 +309,6 @@ export default function ProfileDropdown() {
           <div className="px-6 pb-4">
             <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-3">Ưu đãi, khuyến mãi</h2>
             <div className="space-y-2">
-              <Link 
-                to="/promotions" 
-                onClick={() => setIsOpen(false)}
-                className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.538 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.783.57-1.838-.197-1.538-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.92 8.76c-.783-.57-.38-1.81.588-1.81h3.462a1 1 0 00.95-.69l1.07-3.292z" />
-                </svg>
-                <span className="text-gray-800 dark:text-gray-200">Chợ Tốt ưu đãi</span>
-              </Link>
-              
               <Link 
                 to="/my-promotions" 
                 onClick={() => setIsOpen(false)}

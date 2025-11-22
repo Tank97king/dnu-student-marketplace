@@ -78,6 +78,7 @@ exports.getProducts = async (req, res) => {
       minPrice, 
       maxPrice, 
       sort,
+      dateRange,
       page = 1,
       limit = 20
     } = req.query;
@@ -98,6 +99,11 @@ exports.getProducts = async (req, res) => {
       query.price = {};
       if (minPrice) query.price.$gte = Number(minPrice);
       if (maxPrice) query.price.$lte = Number(maxPrice);
+    }
+    
+    // Date range filter
+    if (dateRange) {
+      query.createdAt = { $gte: new Date(dateRange) };
     }
     
     // Status - chỉ hiển thị sản phẩm Available và đã được duyệt

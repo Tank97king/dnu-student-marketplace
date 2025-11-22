@@ -207,13 +207,13 @@ export default function UserProfile() {
                 <div className="flex justify-center space-x-4 mb-4 text-sm">
                   <div className="text-center">
                     <p className="font-semibold text-gray-900 dark:text-white">
-                      {profile.followersCount || 0}
+                      {profile.followers?.length || profile.followersCount || 0}
                     </p>
                     <p className="text-gray-600 dark:text-gray-400">Người theo dõi</p>
                   </div>
                   <div className="text-center">
                     <p className="font-semibold text-gray-900 dark:text-white">
-                      {profile.followingCount || 0}
+                      {profile.following?.length || profile.followingCount || 0}
                     </p>
                     <p className="text-gray-600 dark:text-gray-400">Đang theo dõi</p>
                   </div>
@@ -239,6 +239,18 @@ export default function UserProfile() {
                     Phản hồi chat: Chưa có thông tin
                   </p>
                 </div>
+
+                {/* Dashboard Link */}
+                {currentUser && (currentUser.id === userId || currentUser.isAdmin) && (
+                  <div className="mt-4">
+                    <Link
+                      to={`/seller-dashboard${currentUser.id === userId ? '' : `/${userId}`}`}
+                      className="block w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 text-center transition-colors"
+                    >
+                      📊 Dashboard Người Bán
+                    </Link>
+                  </div>
+                )}
 
                 {/* Join Date */}
                 <div className="mt-3">

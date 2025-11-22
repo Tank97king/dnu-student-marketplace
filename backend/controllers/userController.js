@@ -1,6 +1,12 @@
 const User = require('../models/User');
 const Product = require('../models/Product');
+const Order = require('../models/Order');
+const Offer = require('../models/Offer');
+const Message = require('../models/Message');
+const ProductView = require('../models/ProductView');
 const Review = require('../models/Review');
+const mongoose = require('mongoose');
+const { createAndEmitNotification } = require('../utils/notifications');
 
 // @desc    Get user profile
 // @route   GET /api/users/profile/:id
@@ -8,14 +14,12 @@ const Review = require('../models/Review');
 exports.getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password');
-
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy người dùng'
       });
     }
-
     res.json({
       success: true,
       data: user
@@ -33,79 +37,24 @@ exports.getUserProfile = async (req, res) => {
 // @access  Private
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, phone, address, avatar, studentId, bio, nickname } = req.body;
-    const userId = req.user.id;
+    const { name, phone, address, avatar, bio, nickname } = req.body;
+    const user = await User.findById(req.user.id);
 
-    // Validation
-    if (!name || !name.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Tên không được để trống'
-      });
-    }
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+    if (address !== undefined) user.address = address;
+    if (avatar) user.avatar = avatar;
+    if (bio !== undefined) user.bio = bio;
+    if (nickname !== undefined) user.nickname = nickname;
 
-    if (phone && !/^[0-9+\-\s()]+$/.test(phone)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Số điện thoại không hợp lệ'
-      });
-    }
-
-    // Validate avatar URL or data URL
-    if (avatar && !avatar.startsWith('data:') && !/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i.test(avatar)) {
-      return res.status(400).json({
-        success: false,
-        message: 'URL ảnh đại diện không hợp lệ'
-      });
-    }
-
-    // Validate bio length (max 60 words)
-    if (bio) {
-      const wordCount = bio.trim().split(/\s+/).filter(word => word.length > 0).length;
-      if (wordCount > 60) {
-        return res.status(400).json({
-          success: false,
-          message: 'Giới thiệu không được vượt quá 60 từ'
-        });
-      }
-    }
-
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy người dùng'
-      });
-    }
-
-    // Update fields
-    user.name = name.trim();
-    if (phone) user.phone = phone.trim();
-    if (address) user.address = address.trim();
-    if (avatar) user.avatar = avatar.trim();
-    if (studentId) user.studentId = studentId.trim();
-    if (bio !== undefined) user.bio = bio.trim();
-    if (nickname) user.nickname = nickname.trim().toLowerCase().replace(/\s+/g, '-');
-
-    console.log('Updating user avatar:', avatar ? 'Avatar provided' : 'No avatar');
-    console.log('Avatar length:', avatar ? avatar.length : 0);
-
-    const updatedUser = await user.save();
-
-    // Return user without password
-    const userData = updatedUser.toObject();
-    delete userData.password;
-
-    console.log('Updated user avatar in DB:', userData.avatar ? 'Avatar saved' : 'No avatar in DB');
+    await user.save();
 
     res.json({
       success: true,
-      data: userData,
+      data: user,
       message: 'Cập nhật thông tin thành công'
     });
   } catch (error) {
-    console.error('Error updating profile:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -113,17 +62,15 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-// @desc    Get user products
+// @desc    Get my products
 // @route   GET /api/users/products
 // @access  Private
 exports.getMyProducts = async (req, res) => {
   try {
     const products = await Product.find({ userId: req.user.id })
       .sort({ createdAt: -1 });
-
     res.json({
       success: true,
-      count: products.length,
       data: products
     });
   } catch (error) {
@@ -139,23 +86,25 @@ exports.getMyProducts = async (req, res) => {
 // @access  Private
 exports.addToFavorites = async (req, res) => {
   try {
+    const { productId } = req.params;
     const user = await User.findById(req.user.id);
 
-    if (!user.favorites.includes(req.params.productId)) {
-      user.favorites.push(req.params.productId);
-      await user.save();
-
-      // Update product favorite count
-      const product = await Product.findById(req.params.productId);
-      if (product) {
-        product.favoriteCount += 1;
-        await product.save();
-      }
+    if (user.favorites.includes(productId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sản phẩm đã có trong danh sách yêu thích'
+      });
     }
+
+    user.favorites.push(productId);
+    await user.save();
+
+    // Update product favoriteCount
+    await Product.findByIdAndUpdate(productId, { $inc: { favoriteCount: 1 } });
 
     res.json({
       success: true,
-      message: 'Đã thêm vào yêu thích'
+      message: 'Đã thêm vào danh sách yêu thích'
     });
   } catch (error) {
     res.status(500).json({
@@ -170,23 +119,20 @@ exports.addToFavorites = async (req, res) => {
 // @access  Private
 exports.removeFromFavorites = async (req, res) => {
   try {
+    const { productId } = req.params;
     const user = await User.findById(req.user.id);
 
     user.favorites = user.favorites.filter(
-      favorite => favorite.toString() !== req.params.productId
+      id => id.toString() !== productId
     );
     await user.save();
 
-    // Update product favorite count
-    const product = await Product.findById(req.params.productId);
-    if (product) {
-      product.favoriteCount = Math.max(0, product.favoriteCount - 1);
-      await product.save();
-    }
+    // Update product favoriteCount
+    await Product.findByIdAndUpdate(productId, { $inc: { favoriteCount: -1 } });
 
     res.json({
       success: true,
-      message: 'Đã xóa khỏi yêu thích'
+      message: 'Đã xóa khỏi danh sách yêu thích'
     });
   } catch (error) {
     res.status(500).json({
@@ -202,10 +148,9 @@ exports.removeFromFavorites = async (req, res) => {
 exports.getFavorites = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).populate('favorites');
-
     res.json({
       success: true,
-      data: user.favorites
+      data: user.favorites || []
     });
   } catch (error) {
     res.status(500).json({
@@ -221,23 +166,16 @@ exports.getFavorites = async (req, res) => {
 exports.getUserStats = async (req, res) => {
   try {
     const userId = req.user.id;
-
-    const productsCount = await Product.countDocuments({
-      userId,
-      status: 'Available'
-    });
-    const soldCount = await Product.countDocuments({
-      userId,
-      status: 'Sold'
-    });
-    const reviews = await Review.find({ reviewedUserId: userId });
+    const totalProducts = await Product.countDocuments({ userId });
+    const soldProducts = await Product.countDocuments({ userId, status: 'Sold' });
+    const totalFavorites = (await User.findById(userId)).favorites.length;
 
     res.json({
       success: true,
       data: {
-        activeProducts: productsCount,
-        soldProducts: soldCount,
-        reviews: reviews.length
+        totalProducts,
+        soldProducts,
+        totalFavorites
       }
     });
   } catch (error) {
@@ -253,7 +191,8 @@ exports.getUserStats = async (req, res) => {
 // @access  Public
 exports.getUserPublicProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId)
+    const { userId } = req.params;
+    const user = await User.findById(userId)
       .select('-password -verificationToken -resetPasswordToken -resetPasswordExpire')
       .populate('followers', 'name avatar')
       .populate('following', 'name avatar');
@@ -265,25 +204,38 @@ exports.getUserPublicProfile = async (req, res) => {
       });
     }
 
-    // Tính join date
-    const joinDate = new Date(user.createdAt);
-    const now = new Date();
-    const years = now.getFullYear() - joinDate.getFullYear();
-    const months = now.getMonth() - joinDate.getMonth();
-    const joinDuration = years > 0 
-      ? `${years} năm ${months > 0 ? months : 0} tháng`
-      : `${months} tháng`;
+    // Calculate rating from reviews
+    const ratingStats = await Review.aggregate([
+      { $match: { reviewedUserId: new mongoose.Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: '$rating' },
+          totalReviews: { $sum: 1 }
+        }
+      }
+    ]);
+
+    if (ratingStats.length > 0) {
+      const averageRating = Math.round(ratingStats[0].averageRating * 10) / 10;
+      const totalReviews = ratingStats[0].totalReviews;
+
+      // Update user rating if different
+      if (user.rating.average !== averageRating || user.rating.count !== totalReviews) {
+        await User.findByIdAndUpdate(userId, {
+          'rating.average': averageRating,
+          'rating.count': totalReviews
+        });
+        user.rating = { average: averageRating, count: totalReviews };
+      }
+    }
 
     res.json({
       success: true,
-      data: {
-        ...user.toObject(),
-        followersCount: user.followers.length,
-        followingCount: user.following.length,
-        joinDuration
-      }
+      data: user
     });
   } catch (error) {
+    console.error('Error getting user public profile:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -291,28 +243,23 @@ exports.getUserPublicProfile = async (req, res) => {
   }
 };
 
-// @desc    Get user products by status
+// @desc    Get user products
 // @route   GET /api/users/:userId/products
 // @access  Public
 exports.getUserProducts = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { status = 'Available', page = 1, limit = 12 } = req.query;
+    const { status, page = 1, limit = 20 } = req.query;
+    const query = { userId, isApproved: true };
 
-    const query = { 
-      userId,
-      status: { $ne: 'Deleted' },  // Không hiển thị sản phẩm đã xóa
-      isApproved: true  // Chỉ hiển thị sản phẩm đã được duyệt (áp dụng cho tất cả)
-    };
-    
-    if (status && status !== 'all') {
+    if (status) {
       query.status = status;
     }
 
     const products = await Product.find(query)
       .populate('userId', 'name avatar')
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
+      .limit(Number(limit))
       .skip((page - 1) * limit);
 
     const total = await Product.countDocuments(query);
@@ -321,10 +268,10 @@ exports.getUserProducts = async (req, res) => {
       success: true,
       data: products,
       pagination: {
-        current: parseInt(page),
-        pages: Math.ceil(total / limit),
+        page: Number(page),
+        limit: Number(limit),
         total,
-        limit: parseInt(limit)
+        pages: Math.ceil(total / limit)
       }
     });
   } catch (error) {
@@ -374,6 +321,17 @@ exports.followUser = async (req, res) => {
 
     await userToFollow.save();
     await currentUser.save();
+
+    // Create notification
+    const io = req.app.get('io');
+    await createAndEmitNotification(
+      io,
+      userId,
+      'user_followed',
+      'Có người theo dõi bạn',
+      `${currentUser.name} đã bắt đầu theo dõi bạn`,
+      { followerId: currentUserId, followerName: currentUser.name }
+    );
 
     res.json({
       success: true,
@@ -444,8 +402,102 @@ exports.unfollowUser = async (req, res) => {
   }
 };
 
+// @desc    Get seller stats
+// @route   GET /api/users/:userId/seller-stats
+// @access  Private
+exports.getSellerStats = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { timeRange = 'month' } = req.query; // 'week', 'month', 'year', 'all'
 
+    // Calculate date range
+    const now = new Date();
+    let startDate = null;
+    
+    switch (timeRange) {
+      case 'week':
+        startDate = new Date(now.setDate(now.getDate() - 7));
+        break;
+      case 'month':
+        startDate = new Date(now.setMonth(now.getMonth() - 1));
+        break;
+      case 'year':
+        startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+        break;
+      default:
+        startDate = null;
+    }
 
+    const dateFilter = startDate ? { createdAt: { $gte: startDate } } : {};
 
+    // Get user's products
+    const products = await Product.find({ userId, ...dateFilter });
+    const productIds = products.map(p => p._id);
 
+    // Calculate stats
+    const totalProducts = await Product.countDocuments({ userId });
+    const soldProducts = await Product.countDocuments({ userId, status: 'Sold', ...dateFilter });
 
+    // Total views
+    const totalViews = await ProductView.countDocuments({ 
+      productId: { $in: productIds },
+      ...dateFilter
+    });
+
+    // Total favorites (sum of favoriteCount from products)
+    const totalFavorites = products.reduce((sum, p) => sum + (p.favoriteCount || 0), 0);
+
+    // Total messages
+    const totalMessages = await Message.countDocuments({
+      receiverId: userId,
+      ...dateFilter
+    });
+
+    // Total offers
+    const totalOffers = await Offer.countDocuments({
+      sellerId: userId,
+      ...dateFilter
+    });
+
+    // Total orders
+    const totalOrders = await Order.countDocuments({
+      sellerId: userId,
+      ...dateFilter
+    });
+
+    // Total revenue
+    const orders = await Order.find({
+      sellerId: userId,
+      status: 'completed',
+      ...dateFilter
+    });
+    const totalRevenue = orders.reduce((sum, order) => sum + order.finalPrice, 0);
+
+    // Top products by views
+    const topProducts = await Product.find({ userId })
+      .sort({ viewCount: -1 })
+      .limit(5)
+      .select('title images price viewCount favoriteCount');
+
+    res.json({
+      success: true,
+      data: {
+        totalProducts,
+        soldProducts,
+        totalViews,
+        totalFavorites,
+        totalMessages,
+        totalOffers,
+        totalOrders,
+        totalRevenue,
+        topProducts
+      }
+    });
+  } catch (error) {
+    console.error('Error getting seller stats:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

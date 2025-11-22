@@ -6,12 +6,16 @@ const {
   getUserReviews,
   updateReview,
   deleteReview,
-  getUserReviewStats
+  getUserReviewStats,
+  syncAllUserRatings
 } = require('../controllers/reviewController');
 const { protect } = require('../middleware/auth');
 
 // Tạo đánh giá mới (cần đăng nhập)
 router.post('/', protect, createReview);
+
+// Sync lại rating cho tất cả users (chỉ admin)
+router.post('/sync-ratings', protect, syncAllUserRatings);
 
 // Lấy đánh giá của một sản phẩm (public)
 router.get('/product/:productId', getProductReviews);

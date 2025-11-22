@@ -5,6 +5,9 @@ import { fetchProduct } from '../store/slices/productSlice'
 import { addToFavorites, removeFromFavorites, fetchFavorites } from '../store/slices/userSlice'
 import api from '../utils/api'
 import ReviewSection from '../components/ReviewSection'
+import OfferModal from '../components/OfferModal'
+import ShareProduct from '../components/ShareProduct'
+import { addToCompare } from '../pages/CompareProducts'
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -14,20 +17,24 @@ export default function ProductDetail() {
   const { user } = useSelector(state => state.auth)
   const { favorites } = useSelector(state => state.user)
   const [isFavorite, setIsFavorite] = useState(false)
-  const [comment, setComment] = useState('')
-  const [comments, setComments] = useState([])
   const [showImageModal, setShowImageModal] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [mainImageIndex, setMainImageIndex] = useState(0)
   const [imageZoom, setImageZoom] = useState(1)
-  const [editingComment, setEditingComment] = useState(null)
-  const [editContent, setEditContent] = useState('')
+  const [showOfferModal, setShowOfferModal] = useState(false)
 
   useEffect(() => {
     dispatch(fetchProduct(id))
     setMainImageIndex(0)
     setCurrentImageIndex(0)
   }, [dispatch, id])
+
+  // Track product view
+  useEffect(() => {
+    if (user && product && product.userId?._id !== user.id) {
+      api.post(`/products/${id}/view`).catch(console.error);
+    }
+  }, [user, product, id])
 
   // Load favorites for logged in users
   useEffect(() => {
@@ -43,21 +50,6 @@ export default function ProductDetail() {
       setIsFavorite(favoriteIds.includes(id))
     }
   }, [favorites, id])
-
-  // Load comments separately
-  useEffect(() => {
-    const loadComments = async () => {
-      try {
-        console.log('Loading comments for product:', id)
-        const response = await api.get(`/products/${id}/comments`)
-        console.log('Comments loaded:', response.data.data)
-        setComments(response.data.data)
-      } catch (error) {
-        console.error('Error loading comments:', error)
-      }
-    }
-    loadComments()
-  }, [id])
 
   // Keyboard navigation for image viewer
   useEffect(() => {
@@ -93,59 +85,6 @@ export default function ProductDetail() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [showImageModal, product])
 
-  const handleAddComment = async (e) => {
-    e.preventDefault()
-    if (!comment.trim()) return
-    
-    try {
-      console.log('Adding comment:', comment, 'for product:', id)
-      const response = await api.post(`/products/${id}/comments`, { content: comment })
-      console.log('Comment added successfully:', response.data.data)
-      setComments([response.data.data, ...comments])
-      setComment('')
-    } catch (error) {
-      console.error('Error adding comment:', error)
-      alert('Không thể thêm bình luận. Vui lòng đăng nhập để bình luận.')
-    }
-  }
-
-  const handleEditComment = (comment) => {
-    setEditingComment(comment._id)
-    setEditContent(comment.content)
-  }
-
-  const handleCancelEdit = () => {
-    setEditingComment(null)
-    setEditContent('')
-  }
-
-  const handleUpdateComment = async (commentId) => {
-    if (!editContent.trim()) return
-    
-    try {
-      const response = await api.put(`/comments/${commentId}`, { content: editContent })
-      setComments(comments.map(comment => 
-        comment._id === commentId ? response.data.data : comment
-      ))
-      setEditingComment(null)
-      setEditContent('')
-    } catch (error) {
-      console.error('Error updating comment:', error)
-      alert('Không thể cập nhật bình luận')
-    }
-  }
-
-  const handleDeleteComment = async (commentId) => {
-    if (!confirm('Bạn có chắc muốn xóa bình luận này?')) return
-    
-    try {
-      await api.delete(`/comments/${commentId}`)
-      setComments(comments.filter(comment => comment._id !== commentId))
-    } catch (error) {
-      console.error('Error deleting comment:', error)
-      alert('Không thể xóa bình luận')
-    }
-  }
 
   const handleChat = () => {
     if (!user) {
@@ -365,12 +304,20 @@ export default function ProductDetail() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-4">
+              <div className="flex gap-4 flex-wrap">
                 {user?.id !== product.userId?._id ? (
                   <>
+                    {product.status === 'Available' && (
+                      <button
+                        onClick={() => setShowOfferModal(true)}
+                        className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 min-w-[150px]"
+                      >
+                        💰 Đề nghị giá
+                      </button>
+                    )}
                     <button
                       onClick={handleChat}
-                      className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700"
+                      className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 min-w-[150px]"
                     >
                       Liên hệ người bán
                     </button>
@@ -384,6 +331,18 @@ export default function ProductDetail() {
                     >
                       {isFavorite ? '❤️ Đã lưu' : '🤍 Yêu thích'}
                     </button>
+                    <button
+                      onClick={() => {
+                        if (addToCompare(id)) {
+                          alert('Đã thêm vào danh sách so sánh. Xem tại /compare');
+                          navigate('/compare');
+                        }
+                      }}
+                      className="px-6 py-3 border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                    >
+                      ⚖️ So sánh
+                    </button>
+                    <ShareProduct productId={id} productTitle={product.title} />
                   </>
                 ) : (
                   <>
@@ -393,9 +352,28 @@ export default function ProductDetail() {
                     >
                       Chỉnh sửa
                     </Link>
-                    <button className="px-6 py-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <button 
+                      onClick={async () => {
+                        if (window.confirm('Bạn có chắc chắn muốn đánh dấu sản phẩm này là đã bán?')) {
+                          try {
+                            await api.put(`/products/${id}/sold`);
+                            dispatch(fetchProduct(id));
+                            alert('Đã đánh dấu sản phẩm là đã bán');
+                          } catch (error) {
+                            alert('Không thể cập nhật trạng thái');
+                          }
+                        }
+                      }}
+                      className="px-6 py-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
                       Đánh dấu đã bán
                     </button>
+                    <Link
+                      to="/seller-dashboard"
+                      className="px-6 py-3 border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                    >
+                      📊 Dashboard
+                    </Link>
                   </>
                 )}
               </div>
@@ -426,132 +404,7 @@ export default function ProductDetail() {
             </div>
           )}
 
-          {/* Comments */}
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold mb-4">Bình luận ({comments.length})</h2>
-            {user ? (
-              <form onSubmit={handleAddComment} className="mb-4">
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Thêm bình luận..."
-                  className="w-full px-4 py-2 border rounded-lg mb-2"
-                  rows="3"
-                  required
-                />
-                <button
-                  type="submit"
-                  className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700"
-                >
-                  Gửi bình luận
-                </button>
-              </form>
-            ) : (
-              <div className="mb-4 p-4 bg-gray-100 rounded-lg text-center">
-                <p className="text-gray-600">Vui lòng đăng nhập để bình luận</p>
-                <Link to="/login" className="text-primary-600 hover:underline">
-                  Đăng nhập ngay
-                </Link>
-              </div>
-            )}
-            <div className="space-y-4">
-              {comments.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  Chưa có bình luận nào. Hãy là người đầu tiên bình luận!
-                </div>
-              ) : (
-                comments.map((comment) => (
-                  <div key={comment._id} className="bg-white p-4 rounded-lg shadow">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center">
-                        <img
-                          src={comment.userId?.avatar || 'https://via.placeholder.com/30'}
-                          className="w-8 h-8 rounded-full mr-2"
-                          alt={comment.userId?.name}
-                        />
-                        <div>
-                          <span className="font-semibold">{comment.userId?.name}</span>
-                          <p className="text-sm text-gray-500">
-                            {new Date(comment.createdAt).toLocaleDateString('vi-VN')}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {/* Edit/Delete buttons for comment owner */}
-                      {user && user.id === comment.userId?._id && (
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEditComment(comment)}
-                            className="text-blue-600 hover:text-blue-800 text-sm"
-                          >
-                            ✏️ Sửa
-                          </button>
-                          <button
-                            onClick={() => handleDeleteComment(comment._id)}
-                            className="text-red-600 hover:text-red-800 text-sm"
-                          >
-                            🗑️ Xóa
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Comment content or edit form */}
-                    {editingComment === comment._id ? (
-                      <div className="mt-2">
-                        <textarea
-                          value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                          className="w-full px-3 py-2 border rounded-lg mb-2"
-                          rows="3"
-                        />
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleUpdateComment(comment._id)}
-                            className="bg-green-600 text-white px-4 py-1 rounded text-sm hover:bg-green-700"
-                          >
-                            Lưu
-                          </button>
-                          <button
-                            onClick={handleCancelEdit}
-                            className="bg-gray-500 text-white px-4 py-1 rounded text-sm hover:bg-gray-600"
-                          >
-                            Hủy
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-gray-700">{comment.content}</p>
-                    )}
-                    
-                    {/* Replies */}
-                    {comment.replies && comment.replies.length > 0 && (
-                      <div className="mt-3 ml-6 space-y-2">
-                        {comment.replies.map((reply, index) => (
-                          <div key={index} className="bg-gray-50 p-3 rounded">
-                            <div className="flex items-center mb-1">
-                              <img
-                                src={reply.userId?.avatar || 'https://via.placeholder.com/24'}
-                                className="w-6 h-6 rounded-full mr-2"
-                                alt={reply.userId?.name}
-                              />
-                              <span className="font-semibold text-sm">{reply.userId?.name}</span>
-                              <span className="text-xs text-gray-500 ml-2">
-                                {new Date(reply.createdAt).toLocaleDateString('vi-VN')}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-700">{reply.content}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Review Section */}
+          {/* Comments & Reviews Section */}
           <div className="mt-8">
             <ReviewSection 
               productId={id} 
@@ -564,6 +417,19 @@ export default function ProductDetail() {
         </div>
       ) : (
         <div className="text-center">Không tìm thấy sản phẩm</div>
+      )}
+
+      {/* Offer Modal */}
+      {product && (
+        <OfferModal
+          product={product}
+          isOpen={showOfferModal}
+          onClose={() => setShowOfferModal(false)}
+          onOfferCreated={(offer) => {
+            console.log('Offer created:', offer);
+            navigate('/orders');
+          }}
+        />
       )}
 
       {/* Image Viewer Modal */}

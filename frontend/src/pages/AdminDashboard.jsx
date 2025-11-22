@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { updateUser } from '../store/slices/authSlice'
 import api from '../utils/api'
 
-export default function AdminDashboard() {
+function AdminDashboard() {
+  const dispatch = useDispatch()
+  const { user: currentUser } = useSelector((state) => state.auth)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(currentUser?.isSuperAdmin || false)
+  
   const [stats, setStats] = useState(null)
   const [products, setProducts] = useState([])
   const [users, setUsers] = useState([])
@@ -14,6 +20,29 @@ export default function AdminDashboard() {
   const [showImageModal, setShowImageModal] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [imageZoom, setImageZoom] = useState(1)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [userToDelete, setUserToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+
+  // Fetch current user data to get latest isSuperAdmin status
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await api.get('/auth/me')
+        if (response.data.success && response.data.data) {
+          const userData = response.data.data
+          dispatch(updateUser(userData))
+          setIsSuperAdmin(userData.isSuperAdmin || false)
+          console.log('AdminDashboard - Fetched user data:', userData)
+          console.log('AdminDashboard - isSuperAdmin:', userData.isSuperAdmin)
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error)
+      }
+    }
+    
+    fetchCurrentUser()
+  }, [dispatch])
 
   useEffect(() => {
     fetchStats()
@@ -166,6 +195,73 @@ export default function AdminDashboard() {
     setImageZoom(1)
   }
 
+  const handleDeleteUser = (user) => {
+    setUserToDelete(user)
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return
+
+    setDeleting(true)
+    try {
+      await api.delete(`/admin/users/${userToDelete._id}`)
+      alert('Đã xóa tài khoản thành công!')
+      setShowDeleteConfirm(false)
+      setUserToDelete(null)
+      fetchUsers()
+      fetchStats()
+      if (showUserModal && selectedUser?._id === userToDelete._id) {
+        setShowUserModal(false)
+      }
+    } catch (error) {
+      alert(error.response?.data?.message || 'Không thể xóa tài khoản')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const cancelDeleteUser = () => {
+    setShowDeleteConfirm(false)
+    setUserToDelete(null)
+  }
+
+  const updateUserStatus = async (userId, updates) => {
+    try {
+      const response = await api.put(`/admin/users/${userId}`, updates)
+      alert(response.data.message || 'Cập nhật thành công!')
+      
+      // Update selected user in modal immediately if it's the same user
+      if (showUserModal && selectedUser?._id === userId && response.data.data) {
+        setSelectedUser(response.data.data)
+      }
+      
+      // Refresh users list
+      await fetchUsers()
+    } catch (error) {
+      alert(error.response?.data?.message || 'Không thể cập nhật')
+    }
+  }
+
+  const handlePromoteAdmin = (user) => {
+    if (window.confirm(`Bạn có chắc chắn muốn bổ nhiệm ${user.name} làm admin?`)) {
+      updateUserStatus(user._id, { isAdmin: true })
+    }
+  }
+
+  const handleRemoveAdmin = (user) => {
+    if (window.confirm(`Bạn có chắc chắn muốn xóa quyền admin của ${user.name}?`)) {
+      updateUserStatus(user._id, { isAdmin: false })
+    }
+  }
+
+  const handleToggleActive = (user) => {
+    const action = user.isActive ? 'khóa' : 'mở khóa'
+    if (window.confirm(`Bạn có chắc chắn muốn ${action} tài khoản của ${user.name}?`)) {
+      updateUserStatus(user._id, { isActive: !user.isActive })
+    }
+  }
+
   return (
     <div className="max-w-7xl mx-auto py-6 px-4">
       <h1 className="text-3xl font-bold mb-6">Bảng điều khiển Quản trị</h1>
@@ -268,7 +364,12 @@ export default function AdminDashboard() {
                     <p className="text-sm text-gray-500">{user.email}</p>
                   </div>
                   <div className="flex items-center space-x-2">
-                    {user.isAdmin && (
+                    {user.isSuperAdmin && (
+                      <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-bold">
+                        Admin Tổng
+                      </span>
+                    )}
+                    {user.isAdmin && !user.isSuperAdmin && (
                       <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
                         Admin
                       </span>
@@ -278,6 +379,49 @@ export default function AdminDashboard() {
                         Đã khóa
                       </span>
                     )}
+                    <div className="flex items-center space-x-2">
+                      {/* Chỉ super admin mới có thể bổ nhiệm/xóa admin */}
+                      {isSuperAdmin && (
+                        <>
+                          {!user.isAdmin ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handlePromoteAdmin(user)
+                              }}
+                              className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700"
+                              title="Bổ nhiệm Admin"
+                            >
+                              Bổ nhiệm Admin
+                            </button>
+                          ) : !user.isSuperAdmin ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleRemoveAdmin(user)
+                              }}
+                              className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700"
+                              title="Xóa quyền Admin"
+                            >
+                              Xóa quyền Admin
+                            </button>
+                          ) : null}
+                        </>
+                      )}
+                      {/* Chỉ super admin mới có thể xóa admin, admin thường có thể xóa user thường */}
+                      {(!user.isAdmin || isSuperAdmin) && !user.isSuperAdmin && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteUser(user)
+                          }}
+                          className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                          title="Xóa tài khoản"
+                        >
+                          Xóa
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -534,7 +678,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
+            <div className="flex flex-wrap justify-end gap-2 mt-6 pt-4 border-t">
               <a
                 href={`/user/${selectedUser._id}`}
                 target="_blank"
@@ -543,6 +687,50 @@ export default function AdminDashboard() {
               >
                 Xem trang cá nhân
               </a>
+              
+              {/* Admin Actions - Chỉ super admin mới có thể bổ nhiệm/xóa admin */}
+              {isSuperAdmin && (
+                <>
+                  {!selectedUser.isAdmin ? (
+                    <button
+                      onClick={() => handlePromoteAdmin(selectedUser)}
+                      className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+                    >
+                      Bổ nhiệm Admin
+                    </button>
+                  ) : !selectedUser.isSuperAdmin ? (
+                    <button
+                      onClick={() => handleRemoveAdmin(selectedUser)}
+                      className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
+                    >
+                      Xóa quyền Admin
+                    </button>
+                  ) : null}
+                </>
+              )}
+
+              {/* Toggle Active Status */}
+              <button
+                onClick={() => handleToggleActive(selectedUser)}
+                className={`px-4 py-2 rounded-lg ${
+                  selectedUser.isActive
+                    ? 'bg-yellow-600 text-white hover:bg-yellow-700'
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
+              >
+                {selectedUser.isActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+              </button>
+
+              {/* Delete User - Chỉ super admin mới có thể xóa admin */}
+              {(!selectedUser.isAdmin || isSuperAdmin) && !selectedUser.isSuperAdmin && (
+                <button
+                  onClick={() => handleDeleteUser(selectedUser)}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+                >
+                  Xóa tài khoản
+                </button>
+              )}
+              
               <button
                 onClick={() => setShowUserModal(false)}
                 className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"
@@ -656,11 +844,62 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && userToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-red-600">Xác nhận xóa tài khoản</h3>
+              <button
+                onClick={cancelDeleteUser}
+                className="text-gray-500 hover:text-gray-700"
+                disabled={deleting}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-700 mb-2">
+                Bạn có chắc chắn muốn xóa tài khoản của:
+              </p>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="font-semibold text-lg">{userToDelete.name}</p>
+                <p className="text-gray-600">{userToDelete.email}</p>
+              </div>
+              <p className="text-red-600 text-sm mt-4 font-semibold">
+                ⚠️ Cảnh báo: Hành động này không thể hoàn tác!
+              </p>
+              <p className="text-gray-600 text-sm mt-2">
+                Tất cả dữ liệu liên quan (sản phẩm, đơn hàng, tin nhắn, đánh giá...) sẽ bị xóa hoặc vô hiệu hóa.
+              </p>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelDeleteUser}
+                disabled={deleting}
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmDeleteUser}
+                disabled={deleting}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? 'Đang xóa...' : 'Xác nhận xóa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-
-
-
+export default AdminDashboard
 

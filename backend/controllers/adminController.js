@@ -1,7 +1,15 @@
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Review = require('../models/Review');
+const Order = require('../models/Order');
+const Offer = require('../models/Offer');
+const Message = require('../models/Message');
+const Comment = require('../models/Comment');
+const Bookmark = require('../models/Bookmark');
+const Notification = require('../models/Notification');
+const ProductView = require('../models/ProductView');
 const { createNotification } = require('./notificationController');
+const { createAndEmitNotification } = require('../utils/notifications');
 
 // @desc    Get all users
 // @route   GET /api/admin/users
@@ -29,7 +37,11 @@ exports.getUsers = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const { isActive, isAdmin } = req.body;
-    const user = await User.findById(req.params.id);
+    const userId = req.params.id;
+    const currentAdminId = req.user.id;
+    const isCurrentUserSuperAdmin = req.user.isSuperAdmin;
+    
+    const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({
@@ -38,15 +50,66 @@ exports.updateUser = async (req, res) => {
       });
     }
 
-    if (isActive !== undefined) user.isActive = isActive;
-    if (isAdmin !== undefined) user.isAdmin = isAdmin;
+    // Check if trying to modify admin status
+    if (isAdmin !== undefined) {
+      // Only super admin can promote/demote admins
+      if (!isCurrentUserSuperAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Chỉ admin tổng mới có quyền bổ nhiệm hoặc xóa quyền admin'
+        });
+      }
+
+      // Prevent removing admin role from yourself
+      if (userId === currentAdminId && isAdmin === false) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bạn không thể xóa quyền admin của chính mình'
+        });
+      }
+
+      // Prevent removing super admin status
+      if (user.isSuperAdmin && isAdmin === false) {
+        return res.status(403).json({
+          success: false,
+          message: 'Không thể xóa quyền admin của admin tổng'
+        });
+      }
+    }
+
+    const updates = {};
+    const messages = [];
+
+    if (isActive !== undefined) {
+      user.isActive = isActive;
+      updates.isActive = isActive;
+      messages.push(isActive ? 'Kích hoạt tài khoản' : 'Khóa tài khoản');
+    }
+
+    if (isAdmin !== undefined) {
+      const wasAdmin = user.isAdmin;
+      user.isAdmin = isAdmin;
+      updates.isAdmin = isAdmin;
+      
+      if (isAdmin && !wasAdmin) {
+        messages.push('Bổ nhiệm làm admin');
+      } else if (!isAdmin && wasAdmin) {
+        messages.push('Xóa quyền admin');
+      }
+    }
 
     await user.save();
+
+    const actionMessage = messages.length > 0 
+      ? messages.join(' và ') 
+      : 'Cập nhật người dùng';
+
+    console.log(`✅ ${isCurrentUserSuperAdmin ? 'Super Admin' : 'Admin'} ${req.user.email} ${actionMessage.toLowerCase()} cho ${user.email}`);
 
     res.json({
       success: true,
       data: user,
-      message: 'Cập nhật người dùng thành công'
+      message: `${actionMessage} thành công`
     });
   } catch (error) {
     res.status(500).json({
@@ -120,24 +183,16 @@ exports.approveProduct = async (req, res) => {
     product.isApproved = true;
     await product.save();
 
-    // Create notification for the seller
-    await createNotification(
+    // Create and emit notification for the seller
+    const io = req.app.get('io');
+    await createAndEmitNotification(
+      io,
       product.userId,
       'product_approved',
       'Sản phẩm đã được duyệt',
       `Sản phẩm "${product.title}" của bạn đã được duyệt và hiển thị trên website.`,
       { productId: product._id, productName: product.title }
     );
-
-    // Emit socket event
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`user-${product.userId}`).emit('new-notification', {
-        type: 'product_approved',
-        title: 'Sản phẩm đã được duyệt',
-        message: `Sản phẩm "${product.title}" của bạn đã được duyệt và hiển thị trên website.`
-      });
-    }
 
     res.json({
       success: true,
@@ -236,8 +291,10 @@ exports.rejectProduct = async (req, res) => {
     product.isApproved = false;
     await product.save();
 
-    // Create notification for the seller
-    await createNotification(
+    // Create and emit notification for the seller
+    const io = req.app.get('io');
+    await createAndEmitNotification(
+      io,
       product.userId,
       'product_rejected',
       'Sản phẩm đã bị từ chối',
@@ -245,19 +302,182 @@ exports.rejectProduct = async (req, res) => {
       { productId: product._id, productName: product.title }
     );
 
-    // Emit socket event
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`user-${product.userId}`).emit('new-notification', {
-        type: 'product_rejected',
-        title: 'Sản phẩm đã bị từ chối',
-        message: `Sản phẩm "${product.title}" của bạn đã bị từ chối.`
-      });
-    }
-
     res.json({
       success: true,
       message: 'Từ chối sản phẩm thành công'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Delete user account
+// @route   DELETE /api/admin/users/:id
+// @access  Admin
+exports.deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const currentAdminId = req.user.id;
+
+    // Prevent self-deletion
+    if (userId === currentAdminId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bạn không thể xóa chính tài khoản của mình'
+      });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
+
+    // Only super admin can delete admins
+    if (user.isAdmin && !req.user.isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ admin tổng mới có quyền xóa tài khoản admin'
+      });
+    }
+
+    // Prevent deleting super admin
+    if (user.isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không thể xóa tài khoản admin tổng'
+      });
+    }
+
+    // Delete or update related data
+    // 1. Delete user's products (or mark as deleted)
+    await Product.updateMany(
+      { userId: userId },
+      { status: 'Deleted', isApproved: false }
+    );
+
+    // 2. Delete user's orders (or mark as cancelled)
+    await Order.updateMany(
+      { $or: [{ buyerId: userId }, { sellerId: userId }] },
+      { status: 'cancelled', cancelledAt: new Date() }
+    );
+
+    // 3. Delete user's offers
+    await Offer.deleteMany({
+      $or: [{ buyerId: userId }, { sellerId: userId }]
+    });
+
+    // 4. Delete user's messages
+    await Message.deleteMany({
+      $or: [{ senderId: userId }, { receiverId: userId }]
+    });
+
+    // 5. Delete user's comments
+    await Comment.deleteMany({ userId: userId });
+    // Also remove user from comment replies
+    await Comment.updateMany(
+      { 'replies.userId': userId },
+      { $pull: { replies: { userId: userId } } }
+    );
+
+    // 6. Delete user's reviews
+    await Review.deleteMany({
+      $or: [{ reviewerId: userId }, { reviewedUserId: userId }]
+    });
+
+    // 7. Delete user's bookmarks
+    await Bookmark.deleteMany({ userId: userId });
+
+    // 8. Delete user's notifications
+    await Notification.deleteMany({ userId: userId });
+
+    // 9. Delete user's product views
+    await ProductView.deleteMany({ userId: userId });
+
+    // 10. Remove user from other users' favorites
+    await User.updateMany(
+      { favorites: userId },
+      { $pull: { favorites: userId } }
+    );
+
+    // 11. Remove user from followers/following of other users
+    await User.updateMany(
+      { followers: userId },
+      { $pull: { followers: userId } }
+    );
+    await User.updateMany(
+      { following: userId },
+      { $pull: { following: userId } }
+    );
+
+    // 12. Finally, delete the user
+    // Store email and phone before deletion for logging
+    const deletedEmail = user.email;
+    const deletedPhone = user.phone;
+    
+    const deleteResult = await User.findByIdAndDelete(userId);
+    
+    if (!deleteResult) {
+      return res.status(500).json({
+        success: false,
+        message: 'Không thể xóa tài khoản người dùng'
+      });
+    }
+
+    // Verify deletion
+    const verifyDeleted = await User.findById(userId);
+    if (verifyDeleted) {
+      console.error('Warning: User still exists after deletion!', userId);
+      return res.status(500).json({
+        success: false,
+        message: 'Xóa tài khoản không thành công. Vui lòng thử lại.'
+      });
+    }
+
+    console.log(`✅ User deleted successfully: ${deletedEmail} (${deletedPhone})`);
+
+    res.json({
+      success: true,
+      message: `Đã xóa tài khoản của ${user.name} thành công`,
+      deletedEmail: deletedEmail,
+      deletedPhone: deletedPhone
+    });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Không thể xóa tài khoản người dùng'
+    });
+  }
+};
+
+// @desc    Check email configuration
+// @route   GET /api/admin/check-email-config
+// @access  Admin
+exports.checkEmailConfig = async (req, res) => {
+  try {
+    const config = {
+      EMAIL_HOST: process.env.EMAIL_HOST || null,
+      EMAIL_PORT: process.env.EMAIL_PORT || null,
+      EMAIL_USER: process.env.EMAIL_USER || null,
+      EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ? '***configured***' : null
+    };
+
+    const isConfigured = config.EMAIL_HOST && config.EMAIL_PORT && config.EMAIL_USER && process.env.EMAIL_PASSWORD;
+
+    res.json({
+      success: true,
+      configured: isConfigured,
+      config: config,
+      message: isConfigured 
+        ? 'Email đã được cấu hình' 
+        : 'Email chưa được cấu hình. Vui lòng kiểm tra file backend/.env'
     });
   } catch (error) {
     res.status(500).json({

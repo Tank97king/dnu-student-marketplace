@@ -27,10 +27,10 @@ exports.protect = async (req, res, next) => {
     req.user = await User.findById(decoded.id);
     
     if (!req.user) {
-      console.log('User not found in database');
+      console.log('User not found in database - user may have been deleted');
       return res.status(401).json({
         success: false,
-        message: 'Người dùng không tồn tại'
+        message: 'Người dùng không tồn tại hoặc đã bị xóa. Vui lòng đăng ký lại.'
       });
     }
 
@@ -58,7 +58,7 @@ exports.protect = async (req, res, next) => {
 // Grant access to admin
 exports.authorize = (...roles) => {
   return (req, res, next) => {
-    console.log('Authorize middleware - User:', req.user?.email, 'isAdmin:', req.user?.isAdmin);
+    console.log('Authorize middleware - User:', req.user?.email, 'isAdmin:', req.user?.isAdmin, 'isSuperAdmin:', req.user?.isSuperAdmin);
     
     // If no roles specified, only allow admin
     if (roles.length === 0) {
@@ -81,5 +81,21 @@ exports.authorize = (...roles) => {
     console.log('Access granted');
     next();
   };
+};
+
+// Grant access to super admin only
+exports.authorizeSuperAdmin = (req, res, next) => {
+  console.log('AuthorizeSuperAdmin middleware - User:', req.user?.email, 'isSuperAdmin:', req.user?.isSuperAdmin);
+  
+  if (!req.user.isSuperAdmin) {
+    console.log('Access denied - User is not super admin');
+    return res.status(403).json({
+      success: false,
+      message: 'Chỉ admin tổng mới có quyền thực hiện hành động này'
+    });
+  }
+  
+  console.log('Super admin access granted');
+  next();
 };
 

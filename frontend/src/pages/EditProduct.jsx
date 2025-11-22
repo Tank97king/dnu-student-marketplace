@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { fetchProduct, updateProduct } from '../store/slices/productSlice'
-import api from '../utils/api'
+import { fetchProduct, updateProduct, deleteProduct } from '../store/slices/productSlice'
 
 export default function EditProduct() {
   const { id } = useParams()
@@ -11,12 +10,14 @@ export default function EditProduct() {
   const { product, loading } = useSelector(state => state.product)
   const { user } = useSelector(state => state.auth)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     price: '',
     category: '',
+    subcategory: '',
     condition: '',
     location: '',
     tags: '',
@@ -24,6 +25,77 @@ export default function EditProduct() {
   })
   const [imageError, setImageError] = useState('')
   const [newImages, setNewImages] = useState([])
+
+  // Subcategories cho tất cả các danh mục
+  const categorySubcategories = {
+    Electronics: [
+      { value: '', label: 'Chọn loại điện tử' },
+      { value: 'điện thoại smartphone iphone android', label: 'Điện thoại' },
+      { value: 'máy tính bảng tablet ipad', label: 'Máy tính bảng' },
+      { value: 'laptop máy tính xách tay notebook', label: 'Laptop' },
+      { value: 'máy tính để bàn desktop pc', label: 'Máy tính để bàn' },
+      { value: 'máy ảnh camera máy quay camcorder', label: 'Máy ảnh, Máy quay' },
+      { value: 'tivi tv âm thanh loa speaker', label: 'Tivi, Âm thanh' },
+      { value: 'đồng hồ thông minh smartwatch thiết bị đeo', label: 'Thiết bị đeo thông minh' },
+      { value: 'màn hình monitor phụ kiện điện tử', label: 'Phụ kiện (Màn hình,...)' },
+      { value: 'ram cpu card linh kiện', label: 'Linh kiện (RAM,...)' }
+    ],
+    Books: [
+      { value: '', label: 'Chọn loại sách' },
+      { value: 'giáo trình đại học môn học ngành', label: 'Sách giáo trình đại học' },
+      { value: 'tham khảo bài tập đề cương ôn thi', label: 'Sách tham khảo, bài tập, đề cương' },
+      { value: 'ngoại ngữ toeic ielts hsk', label: 'Sách ngoại ngữ (TOEIC, IELTS, HSK)' },
+      { value: 'kỹ năng sống khởi nghiệp', label: 'Sách kỹ năng sống, khởi nghiệp' },
+      { value: 'tiểu thuyết truyện light novel manga', label: 'Tiểu thuyết, truyện, light novel, manga' },
+      { value: 'tạp chí học lập trình marketing', label: 'Tạp chí, sách học lập trình, marketing' }
+    ],
+    Clothing: [
+      { value: '', label: 'Chọn loại quần áo' },
+      { value: 'áo thun áo sơ mi áo khoác', label: 'Áo thun, áo sơ mi, áo khoác' },
+      { value: 'quần jeans quần tây quần thể thao', label: 'Quần jeans, quần tây, quần thể thao' },
+      { value: 'đồ mùa đông áo hoodie', label: 'Đồ mùa đông, áo hoodie' },
+      { value: 'đồng phục sinh viên áo khoác khoa áo lớp', label: 'Đồng phục sinh viên, áo khoác khoa, áo lớp' },
+      { value: 'giày dép balo túi xách', label: 'Giày, dép, balo, túi xách' },
+      { value: 'phụ kiện mũ nón đồng hồ thắt lưng', label: 'Phụ kiện: mũ, nón, đồng hồ, thắt lưng' }
+    ],
+    Stationery: [
+      { value: '', label: 'Chọn loại văn phòng phẩm' },
+      { value: 'bút bi bút chì bút highlight', label: 'Bút các loại (bút bi, bút chì, bút highlight)' },
+      { value: 'tập vở sổ tay giấy note', label: 'Tập vở, sổ tay, giấy note' },
+      { value: 'file tài liệu bìa hồ sơ kẹp giấy', label: 'File tài liệu, bìa hồ sơ, kẹp giấy' },
+      { value: 'máy tính cầm tay thước compa', label: 'Máy tính cầm tay, thước, compa' },
+      { value: 'bảng vẽ kẹp tài liệu khay để bút', label: 'Bảng vẽ, kẹp tài liệu, khay để bút' },
+      { value: 'handmade sổ bullet journal sticker', label: 'Sản phẩm handmade học tập (sổ bullet journal, sticker...)' }
+    ],
+    Sports: [
+      { value: '', label: 'Chọn loại thể thao' },
+      { value: 'bóng đá giày bóng áo đấu', label: 'Bóng đá: giày, bóng, áo đấu' },
+      { value: 'cầu lông vợt cầu túi thể thao', label: 'Cầu lông: vợt, cầu, túi thể thao' },
+      { value: 'gym yoga thảm tập găng tay dây kháng lực', label: 'Gym – Yoga: thảm tập, găng tay, dây kháng lực' },
+      { value: 'xe đạp nón bảo hiểm chai nước thể thao', label: 'Xe đạp, nón bảo hiểm, chai nước thể thao' },
+      { value: 'đồ bơi kính bơi áo khoác thể thao', label: 'Đồ bơi, kính bơi, áo khoác thể thao' },
+      { value: 'đồng hồ đếm bước dây nhảy thiết bị', label: 'Thiết bị nhỏ: đồng hồ đếm bước, dây nhảy' }
+    ],
+    Furniture: [
+      { value: '', label: 'Chọn loại nội thất' },
+      { value: 'giường nệm chăn ga gối', label: 'Giường, nệm, chăn ga gối' },
+      { value: 'bàn học ghế học đèn bàn', label: 'Bàn học, ghế học, đèn bàn' },
+      { value: 'tủ quần áo kệ sách tab đầu giường', label: 'Tủ quần áo, kệ sách, tab đầu giường' },
+      { value: 'rèm cửa gương thảm trải sàn', label: 'Rèm cửa, gương, thảm trải sàn' },
+      { value: 'bàn ăn mini ghế xếp', label: 'Bàn ăn mini, ghế xếp' },
+      { value: 'tủ lạnh mini kệ chén bếp điện nhỏ', label: 'Tủ lạnh mini, kệ chén, bếp điện nhỏ' },
+      { value: 'kệ để đồ giá phơi quần áo', label: 'Kệ để đồ, giá phơi quần áo' },
+      { value: 'thùng rác kệ giày dép hộp nhựa đựng đồ', label: 'Thùng rác, kệ giày dép, hộp nhựa đựng đồ' },
+      { value: 'tranh treo tường cây cảnh nhỏ', label: 'Tranh treo tường, cây cảnh nhỏ' },
+      { value: 'đồng hồ treo đèn ngủ', label: 'Đồng hồ treo, đèn ngủ' },
+      { value: 'kệ treo tường giá đỡ điện thoại laptop', label: 'Kệ treo tường, giá đỡ điện thoại/laptop' },
+      { value: 'thảm móc treo phụ kiện decor', label: 'Thảm, móc treo, phụ kiện decor nhỏ' }
+    ]
+  }
+
+  // Lấy subcategories theo category hiện tại
+  const currentSubcategories = categorySubcategories[formData.category] || []
+  const hasSubcategories = currentSubcategories.length > 0
 
   useEffect(() => {
     dispatch(fetchProduct(id))
@@ -37,11 +109,25 @@ export default function EditProduct() {
         return
       }
 
+      // Tìm subcategory từ tags nếu có
+      let detectedSubcategory = ''
+      if (product.category && product.tags && product.tags.length > 0) {
+        const subcats = categorySubcategories[product.category] || []
+        const tagsString = product.tags.join(' ')
+        for (const subcat of subcats) {
+          if (subcat.value && tagsString.includes(subcat.value.split(' ')[0])) {
+            detectedSubcategory = subcat.value
+            break
+          }
+        }
+      }
+
       setFormData({
         title: product.title || '',
         description: product.description || '',
         price: product.price || '',
         category: product.category || '',
+        subcategory: detectedSubcategory,
         condition: product.condition || '',
         location: product.location || '',
         tags: product.tags?.join(', ') || '',
@@ -51,7 +137,14 @@ export default function EditProduct() {
   }, [product, user, navigate])
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
+    const newFormData = { ...formData, [e.target.name]: e.target.value }
+    
+    // Reset subcategory khi đổi category
+    if (e.target.name === 'category') {
+      newFormData.subcategory = ''
+    }
+    
+    setFormData(newFormData)
   }
 
   const handleImageChange = (e) => {
@@ -108,11 +201,25 @@ export default function EditProduct() {
       return
     }
 
-    const result = await dispatch(updateProduct({ 
-      id, 
+    // Thêm subcategory vào tags nếu có
+    let finalTags = formData.tags
+    if (formData.subcategory) {
+      const subcategoryTags = formData.subcategory.split(' ')
+      if (finalTags) {
+        finalTags = `${finalTags}, ${subcategoryTags.join(', ')}`
+      } else {
+        finalTags = subcategoryTags.join(', ')
+      }
+    }
+
+    const submitData = {
+      id,
       ...formData,
-      newImages: newImages 
-    }))
+      tags: finalTags,
+      newImages: newImages
+    }
+
+    const result = await dispatch(updateProduct(submitData))
     
     if (result.type.includes('fulfilled')) {
       setShowSuccessModal(true)
@@ -122,6 +229,15 @@ export default function EditProduct() {
   const handleCloseModal = () => {
     setShowSuccessModal(false)
     navigate(`/products/${id}`)
+  }
+
+  const handleDelete = async () => {
+    const result = await dispatch(deleteProduct(id))
+    
+    if (result.type.includes('fulfilled')) {
+      setShowDeleteModal(false)
+      navigate('/products')
+    }
   }
 
   if (loading) {
@@ -194,6 +310,27 @@ export default function EditProduct() {
             </select>
           </div>
         </div>
+
+        {/* Subcategory dropdown - hiển thị khi category có subcategories */}
+        {hasSubcategories && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Loại {formData.category === 'Electronics' ? 'điện tử' : formData.category === 'Books' ? 'sách' : formData.category === 'Clothing' ? 'quần áo' : formData.category === 'Stationery' ? 'văn phòng phẩm' : formData.category === 'Sports' ? 'thể thao' : formData.category === 'Furniture' ? 'nội thất' : ''}
+            </label>
+            <select
+              name="subcategory"
+              className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+              value={formData.subcategory}
+              onChange={handleChange}
+            >
+              {currentSubcategories.map((subcat) => (
+                <option key={subcat.value} value={subcat.value}>
+                  {subcat.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -322,6 +459,17 @@ export default function EditProduct() {
             Hủy
           </button>
         </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            disabled={loading}
+            className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 disabled:opacity-50"
+          >
+            Xóa sản phẩm
+          </button>
+        </div>
       </form>
 
       {/* Success Modal */}
@@ -347,6 +495,43 @@ export default function EditProduct() {
             >
               Xem sản phẩm
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-md mx-4">
+            <div className="mb-4">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900">
+                <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2 text-center">
+              Xác nhận xóa sản phẩm
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
+              Bạn có chắc chắn muốn xóa sản phẩm này? Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={loading}
+                className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={loading}
+                className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {loading ? 'Đang xóa...' : 'Xóa sản phẩm'}
+              </button>
+            </div>
           </div>
         </div>
       )}

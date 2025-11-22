@@ -9,7 +9,7 @@ const socketIo = require('socket.io');
 const path = require('path');
 
 // Load env vars
-dotenv.config({ path: './env.example' });
+dotenv.config(); // Load from .env file (not env.example)
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -20,6 +20,10 @@ const adminRoutes = require('./routes/admin');
 const commentRoutes = require('./routes/comment');
 const notificationRoutes = require('./routes/notification');
 const reviewRoutes = require('./routes/review');
+const offerRoutes = require('./routes/offer');
+const orderRoutes = require('./routes/order');
+const productViewRoutes = require('./routes/productView');
+const bookmarkRoutes = require('./routes/bookmark');
 
 const app = express();
 const server = http.createServer(app);
@@ -108,6 +112,11 @@ app.use('/api/admin', adminRoutes);
 app.use('/api', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/offers', offerRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/products', productViewRoutes);
+app.use('/api/bookmarks', bookmarkRoutes);
+app.use('/api/products', productRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -115,10 +124,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace')
 .then(() => {
   console.log('MongoDB connected successfully');
   
@@ -126,6 +132,21 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marke
   const PORT = process.env.PORT || 5000;
   server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+  })
+  .on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error('\n❌ ERROR: Port', PORT, 'is already in use!');
+      console.error('\n📋 Solutions:');
+      console.error('   1. Run KILL_PORT_5000.bat to free the port');
+      console.error('   2. Close all terminal windows running backend');
+      console.error('   3. Check Task Manager for node.exe processes');
+      console.error('   4. Or change PORT in backend/.env file\n');
+      console.error('Current processes on port', PORT + ':');
+      console.error('   Run: netstat -ano | findstr :' + PORT);
+    } else {
+      console.error('Server error:', err);
+    }
+    process.exit(1);
   });
 })
 .catch((err) => {

@@ -102,6 +102,19 @@ export const updateProduct = createAsyncThunk(
   }
 )
 
+// Delete product
+export const deleteProduct = createAsyncThunk(
+  'product/deleteProduct',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await api.delete(`/products/${id}`)
+      return response.data
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Xóa sản phẩm thất bại')
+    }
+  }
+)
+
 const productSlice = createSlice({
   name: 'product',
   initialState,
@@ -156,6 +169,18 @@ const productSlice = createSlice({
         }
       })
       .addCase(updateProduct.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload
+      })
+      .addCase(deleteProduct.pending, (state) => {
+        state.loading = true
+      })
+      .addCase(deleteProduct.fulfilled, (state) => {
+        state.loading = false
+        state.error = null
+        state.product = null
+      })
+      .addCase(deleteProduct.rejected, (state, action) => {
         state.loading = false
         state.error = action.payload
       })

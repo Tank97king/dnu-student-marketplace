@@ -1,15 +1,11 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 const User = require('./models/User');
-const bcryptjs = require('bcryptjs');
 
 const createUser = async () => {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace');
     
     console.log('MongoDB connected successfully');
 
@@ -23,20 +19,19 @@ const createUser = async () => {
       process.exit(0);
     }
 
-    // Hash password
-    const salt = await bcryptjs.genSalt(10);
-    const hashedPassword = await bcryptjs.hash('123456789', salt);
-
-    // Create user
+    // Create user - password will be hashed automatically by pre-save hook
+    // DO NOT hash manually, otherwise it will be hashed twice!
     const user = await User.create({
       name: 'Đinh Thế Thành',
       email: '1671020292@dnu.edu.vn',
       phone: '0367670917',
-      password: hashedPassword,
+      password: '123456789', // Will be hashed by pre-save hook
       studentId: '1671020292',
       address: 'phố xốm',
       isVerified: true, // Bypass email verification
-      isActive: true
+      isActive: true,
+      isAdmin: true,
+      isSuperAdmin: true // Super admin - chỉ super admin mới có thể bổ nhiệm/xóa admin
     });
 
     console.log('✅ User created successfully!');

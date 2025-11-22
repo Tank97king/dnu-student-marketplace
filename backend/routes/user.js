@@ -10,7 +10,8 @@ const {
   getUserPublicProfile,
   getUserProducts,
   followUser,
-  unfollowUser
+  unfollowUser,
+  getSellerStats
 } = require('../controllers/userController');
 const { protect } = require('../middleware/auth');
 
@@ -19,6 +20,7 @@ const router = express.Router();
 // Public routes
 router.get('/:userId/public', getUserPublicProfile);
 router.get('/:userId/products', getUserProducts);
+router.get('/:userId/seller-stats', protect, getSellerStats);
 
 // Protected routes
 router.get('/profile/:id', protect, getUserProfile);

@@ -1,15 +1,44 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { logout } from '../store/slices/authSlice'
 import NotificationBadge from './NotificationBadge'
 import ProfileDropdown from './ProfileDropdown'
 import ThemeToggle from './ThemeToggle'
+import api from '../utils/api'
 
 export default function Layout({ children }) {
-  const { user, isAuthenticated } = useSelector(state => state.auth)
+  const { user, isAuthenticated, token } = useSelector(state => state.auth)
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const hasVerifiedRef = useRef(false)
+  
+  console.log('✅ Layout component rendered', { isAuthenticated, hasUser: !!user })
+
+  // Verify user exists when app loads (if authenticated) - only once
+  useEffect(() => {
+    const verifyUser = async () => {
+      // Only verify once and if we have token in localStorage
+      const storedToken = localStorage.getItem('token')
+      if (storedToken && !hasVerifiedRef.current) {
+        hasVerifiedRef.current = true
+        try {
+          // This will trigger 401 if user doesn't exist (deleted by admin)
+          await api.get('/auth/me')
+        } catch (error) {
+          // Error is handled by api interceptor which will clear localStorage and redirect
+          // But we also handle here to ensure logout from Redux
+          if (error.response?.status === 401) {
+            dispatch(logout())
+            // Don't navigate here - api interceptor will handle it
+          }
+        }
+      }
+    }
+
+    verifyUser()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount
 
   const handleLogout = () => {
     dispatch(logout())

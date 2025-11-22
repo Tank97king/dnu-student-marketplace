@@ -1,4 +1,6 @@
 const Comment = require('../models/Comment');
+const Product = require('../models/Product');
+const { createAndEmitNotification } = require('../utils/notifications');
 
 // @desc    Create comment
 // @route   POST /api/products/:productId/comments
@@ -23,6 +25,24 @@ exports.createComment = async (req, res) => {
 
     await comment.populate('userId', 'name avatar');
     console.log('Comment created successfully:', comment._id);
+
+    // Create notification for product owner
+    try {
+      const product = await Product.findById(req.params.id).populate('userId');
+      if (product && product.userId._id.toString() !== req.user.id) {
+        const io = req.app.get('io');
+        await createAndEmitNotification(
+          io,
+          product.userId._id,
+          'new_comment',
+          'Có bình luận mới',
+          `${req.user.name} đã bình luận trên sản phẩm "${product.title}" của bạn`,
+          { productId: product._id, commentId: comment._id, productName: product.title }
+        );
+      }
+    } catch (notifError) {
+      console.error('Error creating comment notification:', notifError);
+    }
 
     res.status(201).json({
       success: true,

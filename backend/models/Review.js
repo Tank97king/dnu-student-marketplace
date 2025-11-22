@@ -5,6 +5,10 @@ const reviewSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  orderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Order'
+  },
   reviewerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -30,6 +34,9 @@ const reviewSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  images: [{
+    type: String // URLs to uploaded images
+  }],
   isSeller: {
     type: Boolean,
     required: true
@@ -40,6 +47,8 @@ const reviewSchema = new mongoose.Schema({
 
 reviewSchema.index({ reviewedUserId: 1 });
 reviewSchema.index({ transactionId: 1 });
+reviewSchema.index({ orderId: 1 });
+reviewSchema.index({ productId: 1 });
 
 module.exports = mongoose.model('Review', reviewSchema);
 

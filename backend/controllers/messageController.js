@@ -1,4 +1,5 @@
 const Message = require('../models/Message');
+const { createAndEmitNotification } = require('../utils/notifications');
 
 // @desc    Send message
 // @route   POST /api/messages
@@ -72,6 +73,16 @@ exports.sendMessage = async (req, res) => {
     if (io) {
       io.to(`user-${receiverId}`).emit('new-message', message);
       console.log('Socket event emitted to user:', receiverId);
+      
+      // Create notification
+      await createAndEmitNotification(
+        io,
+        receiverId,
+        'new_message',
+        'Tin nhắn mới',
+        `${req.user.name} đã gửi tin nhắn cho bạn`,
+        { senderId: req.user.id, messageId: message._id, productId: productId || null }
+      );
     }
 
     res.status(201).json({

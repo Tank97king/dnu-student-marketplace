@@ -34,7 +34,12 @@ export default function Register() {
     }
 
     const { confirmPassword, ...submitData } = formData
-    dispatch(register(submitData))
+    const result = await dispatch(register(submitData))
+    
+    if (register.fulfilled.match(result)) {
+      // Navigate to verify OTP page with email
+      navigate('/verify-otp', { state: { email: formData.email } })
+    }
   }
 
   return (

@@ -34,9 +34,23 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const message = error.response?.data?.message || ''
+      
+      // Clear auth data
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      window.location.href = '/login'
+      
+      // If user doesn't exist or account is deleted, show message
+      if (message.includes('không tồn tại') || message.includes('đã bị khóa') || message.includes('đã bị xóa')) {
+        // Small delay to ensure localStorage is cleared
+        setTimeout(() => {
+          alert('Tài khoản của bạn đã bị xóa hoặc không còn tồn tại. Vui lòng đăng ký lại.')
+          window.location.href = '/login'
+        }, 100)
+      } else {
+        // Regular unauthorized - redirect to login
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

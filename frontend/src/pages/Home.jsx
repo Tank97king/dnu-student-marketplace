@@ -9,6 +9,83 @@ export default function Home() {
   const { products, loading } = useSelector(state => state.product)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [selectedSubcategory, setSelectedSubcategory] = useState('')
+
+  // Subcategories cho tất cả các danh mục
+  const categorySubcategories = {
+    Electronics: [
+      { value: '', label: 'Tất cả loại điện tử' },
+      { value: 'điện thoại smartphone iphone android', label: 'Điện thoại' },
+      { value: 'máy tính bảng tablet ipad', label: 'Máy tính bảng' },
+      { value: 'laptop máy tính xách tay notebook', label: 'Laptop' },
+      { value: 'máy tính để bàn desktop pc', label: 'Máy tính để bàn' },
+      { value: 'máy ảnh camera máy quay camcorder', label: 'Máy ảnh, Máy quay' },
+      { value: 'tivi tv âm thanh loa speaker', label: 'Tivi, Âm thanh' },
+      { value: 'đồng hồ thông minh smartwatch thiết bị đeo', label: 'Thiết bị đeo thông minh' },
+      { value: 'màn hình monitor phụ kiện điện tử', label: 'Phụ kiện (Màn hình,...)' },
+      { value: 'ram cpu card linh kiện', label: 'Linh kiện (RAM,...)' }
+    ],
+    Books: [
+      { value: '', label: 'Tất cả loại sách' },
+      { value: 'giáo trình đại học môn học ngành', label: 'Sách giáo trình đại học' },
+      { value: 'tham khảo bài tập đề cương ôn thi', label: 'Sách tham khảo, bài tập, đề cương' },
+      { value: 'ngoại ngữ toeic ielts hsk', label: 'Sách ngoại ngữ (TOEIC, IELTS, HSK)' },
+      { value: 'kỹ năng sống khởi nghiệp', label: 'Sách kỹ năng sống, khởi nghiệp' },
+      { value: 'tiểu thuyết truyện light novel manga', label: 'Tiểu thuyết, truyện, light novel, manga' },
+      { value: 'tạp chí học lập trình marketing', label: 'Tạp chí, sách học lập trình, marketing' }
+    ],
+    Clothing: [
+      { value: '', label: 'Tất cả loại quần áo' },
+      { value: 'áo thun áo sơ mi áo khoác', label: 'Áo thun, áo sơ mi, áo khoác' },
+      { value: 'quần jeans quần tây quần thể thao', label: 'Quần jeans, quần tây, quần thể thao' },
+      { value: 'đồ mùa đông áo hoodie', label: 'Đồ mùa đông, áo hoodie' },
+      { value: 'đồng phục sinh viên áo khoác khoa áo lớp', label: 'Đồng phục sinh viên, áo khoác khoa, áo lớp' },
+      { value: 'giày dép balo túi xách', label: 'Giày, dép, balo, túi xách' },
+      { value: 'phụ kiện mũ nón đồng hồ thắt lưng', label: 'Phụ kiện: mũ, nón, đồng hồ, thắt lưng' }
+    ],
+    Stationery: [
+      { value: '', label: 'Tất cả loại văn phòng phẩm' },
+      { value: 'bút bi bút chì bút highlight', label: 'Bút các loại (bút bi, bút chì, bút highlight)' },
+      { value: 'tập vở sổ tay giấy note', label: 'Tập vở, sổ tay, giấy note' },
+      { value: 'file tài liệu bìa hồ sơ kẹp giấy', label: 'File tài liệu, bìa hồ sơ, kẹp giấy' },
+      { value: 'máy tính cầm tay thước compa', label: 'Máy tính cầm tay, thước, compa' },
+      { value: 'bảng vẽ kẹp tài liệu khay để bút', label: 'Bảng vẽ, kẹp tài liệu, khay để bút' },
+      { value: 'handmade sổ bullet journal sticker', label: 'Sản phẩm handmade học tập (sổ bullet journal, sticker...)' }
+    ],
+    Sports: [
+      { value: '', label: 'Tất cả loại thể thao' },
+      { value: 'bóng đá giày bóng áo đấu', label: 'Bóng đá: giày, bóng, áo đấu' },
+      { value: 'cầu lông vợt cầu túi thể thao', label: 'Cầu lông: vợt, cầu, túi thể thao' },
+      { value: 'gym yoga thảm tập găng tay dây kháng lực', label: 'Gym – Yoga: thảm tập, găng tay, dây kháng lực' },
+      { value: 'xe đạp nón bảo hiểm chai nước thể thao', label: 'Xe đạp, nón bảo hiểm, chai nước thể thao' },
+      { value: 'đồ bơi kính bơi áo khoác thể thao', label: 'Đồ bơi, kính bơi, áo khoác thể thao' },
+      { value: 'đồng hồ đếm bước dây nhảy thiết bị', label: 'Thiết bị nhỏ: đồng hồ đếm bước, dây nhảy' }
+    ],
+    Furniture: [
+      { value: '', label: 'Tất cả loại nội thất' },
+      { value: 'giường nệm chăn ga gối', label: 'Giường, nệm, chăn ga gối' },
+      { value: 'bàn học ghế học đèn bàn', label: 'Bàn học, ghế học, đèn bàn' },
+      { value: 'tủ quần áo kệ sách tab đầu giường', label: 'Tủ quần áo, kệ sách, tab đầu giường' },
+      { value: 'rèm cửa gương thảm trải sàn', label: 'Rèm cửa, gương, thảm trải sàn' },
+      { value: 'bàn ăn mini ghế xếp', label: 'Bàn ăn mini, ghế xếp' },
+      { value: 'tủ lạnh mini kệ chén bếp điện nhỏ', label: 'Tủ lạnh mini, kệ chén, bếp điện nhỏ' },
+      { value: 'kệ để đồ giá phơi quần áo', label: 'Kệ để đồ, giá phơi quần áo' },
+      { value: 'thùng rác kệ giày dép hộp nhựa đựng đồ', label: 'Thùng rác, kệ giày dép, hộp nhựa đựng đồ' },
+      { value: 'tranh treo tường cây cảnh nhỏ', label: 'Tranh treo tường, cây cảnh nhỏ' },
+      { value: 'đồng hồ treo đèn ngủ', label: 'Đồng hồ treo, đèn ngủ' },
+      { value: 'kệ treo tường giá đỡ điện thoại laptop', label: 'Kệ treo tường, giá đỡ điện thoại/laptop' },
+      { value: 'thảm móc treo phụ kiện decor', label: 'Thảm, móc treo, phụ kiện decor nhỏ' }
+    ]
+  }
+
+  // Lấy subcategories theo category hiện tại
+  const currentSubcategories = categorySubcategories[selectedCategory] || []
+  const hasSubcategories = currentSubcategories.length > 0
+
+  const handleCategoryChange = (e) => {
+    setSelectedCategory(e.target.value)
+    setSelectedSubcategory('') // Reset subcategory khi đổi category
+  }
 
   useEffect(() => {
     dispatch(fetchProducts({ limit: 8, sort: '-createdAt' }))
@@ -31,8 +108,17 @@ export default function Home() {
   const handleSearch = (e) => {
     e.preventDefault()
     const params = new URLSearchParams()
-    if (searchQuery.trim()) {
-      params.append('search', searchQuery.trim())
+    
+    // Nếu có subcategory, sử dụng nó làm search query
+    let finalSearchQuery = searchQuery.trim()
+    if (selectedSubcategory && !finalSearchQuery) {
+      finalSearchQuery = selectedSubcategory
+    } else if (selectedSubcategory && finalSearchQuery) {
+      finalSearchQuery = `${finalSearchQuery} ${selectedSubcategory}`
+    }
+    
+    if (finalSearchQuery) {
+      params.append('search', finalSearchQuery)
     }
     if (selectedCategory) {
       params.append('category', selectedCategory)
@@ -78,7 +164,7 @@ export default function Home() {
           <div className="relative flex-shrink-0">
             <select
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              onChange={handleCategoryChange}
               className="appearance-none bg-transparent text-gray-700 dark:text-gray-200 px-5 py-4 pr-10 border-r border-gray-200 dark:border-gray-600 focus:outline-none cursor-pointer font-semibold text-sm min-w-[200px]"
             >
               {allCategories.map(cat => (
@@ -91,6 +177,26 @@ export default function Home() {
               </svg>
             </div>
           </div>
+
+          {/* Subcategory Dropdown - hiển thị khi category có subcategories */}
+          {hasSubcategories && (
+            <div className="relative flex-shrink-0 border-r border-gray-200 dark:border-gray-600">
+              <select
+                value={selectedSubcategory}
+                onChange={(e) => setSelectedSubcategory(e.target.value)}
+                className="appearance-none bg-transparent text-gray-700 dark:text-gray-200 px-5 py-4 pr-10 focus:outline-none cursor-pointer font-semibold text-sm min-w-[180px]"
+              >
+                {currentSubcategories.map(subcat => (
+                  <option key={subcat.value} value={subcat.value}>{subcat.label}</option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          )}
           
           {/* Search Input */}
           <div className="flex-1 flex items-center bg-transparent">
@@ -123,7 +229,9 @@ export default function Home() {
           {categories.map((category) => (
             <Link
               key={category.name}
-              to={`/products?category=${category.value}`}
+              to={category.value === 'Electronics' 
+                ? `/category/${category.value}` 
+                : `/products?category=${category.value}`}
               className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow text-center"
             >
               <div className="text-4xl mb-2">{category.icon}</div>

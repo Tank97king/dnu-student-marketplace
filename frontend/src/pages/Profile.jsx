@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import api from '../utils/api'
-import { updateUser } from '../store/slices/authSlice'
+import { updateUser, requestChangePassword, verifyOTPAndChangePassword } from '../store/slices/authSlice'
 
 export default function Profile() {
   const { user } = useSelector(state => state.auth)
   const dispatch = useDispatch()
   const location = useLocation()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('personal-info')
   
   const [formData, setFormData] = useState({
@@ -21,6 +22,17 @@ export default function Profile() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showPhone, setShowPhone] = useState(true)
+  
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [showOTPModal, setShowOTPModal] = useState(false)
+  const [otpCode, setOtpCode] = useState(['', '', '', '', '', ''])
 
   useEffect(() => {
     if (user) {
@@ -39,6 +51,92 @@ export default function Profile() {
       ...formData,
       [e.target.name]: e.target.value
     })
+  }
+
+  const handleChangePasswordSubmit = async (e) => {
+    e.preventDefault()
+    setPasswordError('')
+    setSuccess('')
+
+    if (!user?.phone) {
+      setPasswordError('Vui lòng thêm số điện thoại trước khi đổi mật khẩu')
+      return
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('Mật khẩu xác nhận không khớp')
+      return
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError('Mật khẩu mới phải có ít nhất 6 ký tự')
+      return
+    }
+
+    setPasswordLoading(true)
+
+    try {
+      const result = await dispatch(requestChangePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      }))
+
+      if (requestChangePassword.fulfilled.match(result)) {
+        setShowOTPModal(true)
+        setPasswordError('')
+      } else {
+        setPasswordError(result.payload || 'Gửi mã xác minh thất bại')
+      }
+    } catch (error) {
+      setPasswordError('Đã xảy ra lỗi. Vui lòng thử lại.')
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
+
+  const handleOTPChange = (index, value) => {
+    if (value.length > 1) return
+    if (!/^\d*$/.test(value)) return
+
+    const newCode = [...otpCode]
+    newCode[index] = value.slice(-1)
+    setOtpCode(newCode)
+
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`)
+      if (nextInput) nextInput.focus()
+    }
+  }
+
+  const handleOTPSubmit = async (e) => {
+    e.preventDefault()
+    const code = otpCode.join('')
+    
+    if (code.length !== 6) {
+      setPasswordError('Vui lòng nhập đầy đủ 6 chữ số')
+      return
+    }
+
+    setPasswordLoading(true)
+    setPasswordError('')
+
+    try {
+      const result = await dispatch(verifyOTPAndChangePassword({ code }))
+
+      if (verifyOTPAndChangePassword.fulfilled.match(result)) {
+        setSuccess('Đổi mật khẩu thành công!')
+        setShowOTPModal(false)
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+        setOtpCode(['', '', '', '', '', ''])
+        setTimeout(() => setSuccess(''), 3000)
+      } else {
+        setPasswordError(result.payload || 'Mã xác minh không đúng')
+      }
+    } catch (error) {
+      setPasswordError('Đã xảy ra lỗi. Vui lòng thử lại.')
+    } finally {
+      setPasswordLoading(false)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -272,23 +370,41 @@ export default function Profile() {
                   <div className="mb-8">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Thay đổi mật khẩu</h3>
                     
-                    {/* Warning Banner */}
-                    <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-4 mb-6 flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-500 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      <p className="text-sm text-orange-700 dark:text-orange-300">
-                        Hãy thêm số điện thoại và xác thực trước khi thực hiện thao tác này.
-                      </p>
-                    </div>
+                    {/* Warning Banner - Only show if no phone */}
+                    {!user?.phone && (
+                      <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-4 mb-6 flex items-start">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-500 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <p className="text-sm text-orange-700 dark:text-orange-300">
+                          Hãy thêm số điện thoại trước khi thực hiện thao tác này.
+                        </p>
+                      </div>
+                    )}
 
-                    <div className="space-y-4">
+                    {passwordError && (
+                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 mb-6 text-sm text-red-700 dark:text-red-300">
+                        {passwordError}
+                      </div>
+                    )}
+
+                    {success && (
+                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4 mb-6 text-sm text-green-700 dark:text-green-300">
+                        {success}
+                      </div>
+                    )}
+
+                    <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Mật khẩu hiện tại *
                         </label>
                         <input
                           type="password"
+                          name="currentPassword"
+                          value={passwordData.currentPassword}
+                          onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                          required
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
                           placeholder="Nhập mật khẩu hiện tại"
                         />
@@ -300,6 +416,11 @@ export default function Profile() {
                         </label>
                         <input
                           type="password"
+                          name="newPassword"
+                          value={passwordData.newPassword}
+                          onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                          required
+                          minLength={6}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
                           placeholder="Nhập mật khẩu mới"
                         />
@@ -311,18 +432,24 @@ export default function Profile() {
                         </label>
                         <input
                           type="password"
+                          name="confirmPassword"
+                          value={passwordData.confirmPassword}
+                          onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                          required
+                          minLength={6}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
                           placeholder="Nhập lại mật khẩu mới"
                         />
                       </div>
-                    </div>
 
-                    <button
-                      disabled
-                      className="mt-6 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 px-6 py-2 rounded-lg font-medium cursor-not-allowed"
-                    >
-                      ĐỔI MẬT KHẨU
-                    </button>
+                      <button
+                        type="submit"
+                        disabled={passwordLoading || !user?.phone}
+                        className="mt-6 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:dark:bg-gray-600 disabled:text-gray-500 disabled:dark:text-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                      >
+                        {passwordLoading ? 'Đang xử lý...' : 'ĐỔI MẬT KHẨU'}
+                      </button>
+                    </form>
                   </div>
 
                   {/* Allow phone contact */}
@@ -355,6 +482,65 @@ export default function Profile() {
                     <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">
                       Yêu cầu chấm dứt tài khoản
                     </a>
+                  </div>
+                </div>
+              )}
+
+              {/* OTP Modal */}
+              {showOTPModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+                      Xác minh mã OTP
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                      Chúng tôi đã gửi mã xác minh đến email <strong>{user?.email}</strong>. Vui lòng nhập mã 6 chữ số.
+                    </p>
+
+                    <form onSubmit={handleOTPSubmit}>
+                      <div className="flex justify-center space-x-2 mb-6">
+                        {otpCode.map((digit, index) => (
+                          <input
+                            key={index}
+                            id={`otp-${index}`}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={1}
+                            value={digit}
+                            onChange={(e) => handleOTPChange(index, e.target.value)}
+                            className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
+                            autoFocus={index === 0}
+                          />
+                        ))}
+                      </div>
+
+                      {passwordError && (
+                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 mb-4 text-sm text-red-700 dark:text-red-300">
+                          {passwordError}
+                        </div>
+                      )}
+
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowOTPModal(false)
+                            setOtpCode(['', '', '', '', '', ''])
+                            setPasswordError('')
+                          }}
+                          className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                        >
+                          Hủy
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={passwordLoading || otpCode.join('').length !== 6}
+                          className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:dark:bg-gray-600 disabled:text-gray-500 disabled:dark:text-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          {passwordLoading ? 'Đang xác minh...' : 'Xác minh'}
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
               )}
