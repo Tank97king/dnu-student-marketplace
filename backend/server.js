@@ -179,6 +179,18 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
+// Global Error Handler (phải đặt sau tất cả routes)
+const errorHandler = require('./middleware/errorHandler');
+app.use(errorHandler);
+
+// Handle 404 routes
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.originalUrl} không tồn tại`
+  });
+});
+
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dnu-marketplace')
 .then(() => {

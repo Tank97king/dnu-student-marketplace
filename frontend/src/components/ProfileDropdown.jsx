@@ -144,43 +144,6 @@ export default function ProfileDropdown() {
             </div>
           </div>
 
-          {/* Nạp Đồng Tốt Button */}
-          <div className="px-6 pb-4">
-            <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-between transition-colors">
-              <div className="flex items-center">
-                <div className="w-8 h-8 bg-yellow-400 rounded mr-3 flex items-center justify-center text-xs font-bold text-gray-800">
-                  TỐT
-                </div>
-                <span>Nạp Đồng Tốt giá trị linh hoạt</span>
-              </div>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Điểm Tốt & Đồng Tốt Cards */}
-          <div className="px-6 pb-4 flex gap-3">
-            <div className="flex-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
-              <div className="text-sm text-gray-700 dark:text-gray-300 mb-1">Điểm Tốt</div>
-              <div className="flex items-center">
-                <span className="text-xl font-bold text-gray-800 dark:text-gray-200 mr-2">{user?.goodScore || 0}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.538 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.783.57-1.838-.197-1.538-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.92 8.76c-.783-.57-.38-1.81.588-1.81h3.462a1 1 0 00.95-.69l1.07-3.292z" />
-                </svg>
-              </div>
-            </div>
-            <div className="flex-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
-              <div className="text-sm text-gray-700 dark:text-gray-300 mb-1">Đồng Tốt</div>
-              <div className="flex items-center">
-                <span className="text-xl font-bold text-gray-800 dark:text-gray-200 mr-2">{user?.balance || 0}</span>
-                <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center">
-                  <span className="text-xs font-bold text-yellow-900">UT</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Quản lí đơn hàng Section */}
           <div className="px-6 pb-4">
             <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-3">Quản lí đơn hàng</h2>
@@ -268,50 +231,6 @@ export default function ProfileDropdown() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span className="text-gray-800 dark:text-gray-200">Lịch sử giao dịch</span>
-              </Link>
-            </div>
-          </div>
-
-          {/* Dịch vụ trả phí Section */}
-          <div className="px-6 pb-4">
-            <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-3">Dịch vụ trả phí</h2>
-            <div className="space-y-2">
-              <Link 
-                to="/coins" 
-                onClick={() => setIsOpen(false)}
-                className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              >
-                <div className="w-5 h-5 bg-yellow-400 rounded-full mr-3 flex items-center justify-center">
-                  <span className="text-xs font-bold text-white">DT</span>
-                </div>
-                <span className="text-gray-800 dark:text-gray-200">Đồng Tốt</span>
-              </Link>
-              
-              <Link 
-                to="/pro-package" 
-                onClick={() => setIsOpen(false)}
-                className="flex items-center justify-between p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              >
-                <div className="flex items-center">
-                  <div className="w-5 h-5 bg-gray-800 rounded-full mr-3 flex items-center justify-center">
-                    <span className="text-xs font-bold text-white">PRO</span>
-                  </div>
-                  <span className="text-gray-800 dark:text-gray-200">Gói PRO</span>
-                </div>
-                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">Mới</span>
-              </Link>
-              
-              <Link 
-                to="/partner-channel" 
-                onClick={() => setIsOpen(false)}
-                className="flex items-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
-              >
-                <div className="w-5 h-5 bg-orange-500 rounded mr-3 flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                </div>
-                <span className="text-gray-800 dark:text-gray-200">Kênh Đối Tác</span>
               </Link>
             </div>
           </div>

@@ -13,16 +13,24 @@ const {
   logout
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
+const { authLimiter } = require('../middleware/rateLimiter');
+const {
+  validateRegister,
+  validateLogin,
+  validateForgotPassword,
+  validateVerifyOTP
+} = require('../middleware/validators/authValidator');
 
 const router = express.Router();
 
-router.post('/register', register);
-router.post('/verify-otp', verifyOTP);
-router.post('/resend-verification', resendVerificationCode);
+// Apply rate limiting và validation cho auth routes
+router.post('/register', authLimiter, validateRegister, register);
+router.post('/verify-otp', validateVerifyOTP, verifyOTP);
+router.post('/resend-verification', authLimiter, resendVerificationCode);
 router.get('/verify/:token', verifyEmail); // Legacy endpoint
-router.post('/login', login);
-router.post('/forgotpassword', forgotPassword);
-router.post('/verify-otp-reset-password', verifyOTPAndResetPassword);
+router.post('/login', authLimiter, validateLogin, login);
+router.post('/forgotpassword', authLimiter, validateForgotPassword, forgotPassword);
+router.post('/verify-otp-reset-password', authLimiter, validateVerifyOTP, verifyOTPAndResetPassword);
 
 // Protected routes
 router.get('/me', protect, getMe);

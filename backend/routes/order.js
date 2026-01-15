@@ -8,8 +8,9 @@ const {
   confirmOrder
 } = require('../controllers/orderController');
 const { protect } = require('../middleware/auth');
+const { validateCreateOrder } = require('../middleware/validators/orderValidator');
 
-router.post('/', protect, createDirectOrder);
+router.post('/', protect, validateCreateOrder, createDirectOrder);
 router.get('/', protect, getOrders);
 router.get('/:id', protect, getOrder);
 router.put('/:id/status', protect, updateOrderStatus);

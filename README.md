@@ -67,6 +67,31 @@ DNU Marketplace là một nền tảng web cho phép sinh viên Đại học Đ�
 - Tự động hết hạn đề nghị giá (7 ngày)
 - Tự động hủy thanh toán chưa upload biên lai (24 giờ)
 - Thông báo tự động khi hết hạn
+- Thông báo thông minh dựa trên hành vi người dùng
+
+### Mạng xã hội & Nội dung ⭐ MỚI
+- **Feed**: Xem bài đăng từ người dùng khác
+- **Posts**: Đăng bài chia sẻ, review sản phẩm
+- **Stories**: Chia sẻ khoảnh khắc 24 giờ
+- **Collections**: Tạo bộ sưu tập sản phẩm yêu thích
+- **Hashtags**: Gắn thẻ và tìm kiếm theo hashtag
+- **Follow/Unfollow**: Theo dõi người dùng khác
+- **Notifications**: Thông báo real-time về tương tác
+
+### Chatbot AI ⭐ MỚI
+- Chatbot hỗ trợ tự động với Google Gemini AI
+- Trả lời câu hỏi thường gặp
+- Hướng dẫn sử dụng ứng dụng
+- Tìm kiếm sản phẩm thông minh
+- Kiểm tra trạng thái đơn hàng
+- Rate limiting để tránh spam
+
+### Tìm kiếm & Gợi ý ⭐ MỚI
+- Tìm kiếm nâng cao với autocomplete
+- Lưu lịch sử tìm kiếm
+- Gợi ý sản phẩm dựa trên hành vi
+- So sánh sản phẩm
+- Xem sản phẩm đã xem
 
 ## Công nghệ sử dụng
 
@@ -80,6 +105,10 @@ DNU Marketplace là một nền tảng web cho phép sinh viên Đại học Đ�
 - Multer (file upload)
 - bcryptjs (password hashing)
 - Cron Jobs (node-cron) cho tự động hóa
+- Google Gemini AI (chatbot)
+- express-validator (input validation)
+- express-rate-limit (rate limiting)
+- Helmet.js (security headers)
 
 ### Frontend
 - React 18
@@ -130,6 +159,9 @@ EMAIL_PASSWORD=your-app-password
 
 # Frontend URL
 FRONTEND_URL=http://localhost:3000
+
+# Google Gemini AI (Optional - cho chatbot)
+GEMINI_API_KEY=your-gemini-api-key-here
 ```
 
 Chạy backend:
@@ -265,6 +297,52 @@ Frontend sẽ chạy tại `http://localhost:3000`
 - `GET /api/admin/products/pending` - Sản phẩm chờ duyệt
 - `PUT /api/admin/products/:id/approve` - Duyệt sản phẩm
 
+### Posts & Feed ⭐ MỚI
+- `GET /api/posts` - Lấy danh sách bài đăng (Feed)
+- `GET /api/posts/:id` - Lấy chi tiết bài đăng
+- `POST /api/posts` - Tạo bài đăng mới
+- `PUT /api/posts/:id` - Cập nhật bài đăng
+- `DELETE /api/posts/:id` - Xóa bài đăng
+- `GET /api/posts/user/:userId` - Lấy bài đăng của user
+- `GET /api/posts/hashtag/:hashtag` - Lấy bài đăng theo hashtag
+
+### Stories ⭐ MỚI
+- `GET /api/stories` - Lấy danh sách stories
+- `GET /api/stories/user/:userId` - Lấy stories của user
+- `POST /api/stories` - Tạo story mới
+- `DELETE /api/stories/:id` - Xóa story
+
+### Collections ⭐ MỚI
+- `GET /api/collections` - Lấy danh sách collections
+- `GET /api/collections/:id` - Lấy chi tiết collection
+- `POST /api/collections` - Tạo collection mới
+- `PUT /api/collections/:id` - Cập nhật collection
+- `DELETE /api/collections/:id` - Xóa collection
+- `POST /api/collections/:id/products/:productId` - Thêm sản phẩm vào collection
+
+### Hashtags ⭐ MỚI
+- `GET /api/hashtags` - Lấy danh sách hashtags phổ biến
+- `GET /api/hashtags/:hashtag` - Lấy thông tin hashtag
+
+### Search ⭐ MỚI
+- `GET /api/search` - Tìm kiếm tổng hợp (products, posts, users)
+- `GET /api/search/autocomplete` - Tìm kiếm gợi ý
+- `GET /api/search/history` - Lịch sử tìm kiếm
+
+### Product Recommendations ⭐ MỚI
+- `GET /api/recommendations` - Gợi ý sản phẩm cho user
+- `GET /api/recommendations/similar/:productId` - Sản phẩm tương tự
+
+### Chatbot ⭐ MỚI
+- `POST /api/chatbot/chat` - Chat với AI
+- `POST /api/chatbot/clear-history` - Xóa lịch sử chat
+
+### Follow & Social ⭐ MỚI
+- `POST /api/users/:userId/follow` - Theo dõi user
+- `DELETE /api/users/:userId/follow` - Bỏ theo dõi
+- `GET /api/users/:userId/followers` - Lấy danh sách người theo dõi
+- `GET /api/users/:userId/following` - Lấy danh sách đang theo dõi
+
 ## Tính năng bảo mật
 
 - JWT Authentication
@@ -318,6 +396,136 @@ Tất cả các sự kiện hết hạn đều gửi thông báo real-time cho n
 - Người mua có 24 giờ để upload ảnh biên lai sau khi tạo thanh toán
 - Chỉ Super Admin mới có thể quản lý Bank QR
 - Đơn hàng sẽ tự động hủy nếu không được xác nhận trong 24 giờ
+- Stories sẽ tự động hết hạn sau 24 giờ
+- Chatbot có rate limiting: tối đa 20 requests/phút
+
+## Scripts tiện ích
+
+Dự án có các file batch script để hỗ trợ phát triển:
+
+- `START_BOTH.bat` - Khởi động cả backend và frontend cùng lúc
+- `QUICK_FIX_PORT_5000.bat` - Giải phóng port 5000 nếu bị chiếm
+- `SET_SUPER_ADMIN.bat` - Tạo Super Admin
+- `INSTALL_CHATBOT.bat` - Cài đặt dependencies cho chatbot
+- `LIST_MODELS.bat` - Liệt kê các models trong database
+- `PUSH_TO_GITHUB.bat` - Hướng dẫn push code lên GitHub
+
+## Testing
+
+### Chạy tests (nếu có)
+
+```bash
+cd backend
+npm test
+```
+
+### Test API với Postman/Thunder Client
+
+1. Import collection từ file `backend/postman_collection.json` (nếu có)
+2. Set environment variables:
+   - `base_url`: `http://localhost:5000/api`
+   - `token`: JWT token sau khi login
+
+## Troubleshooting
+
+### Lỗi Port đã được sử dụng
+
+```bash
+# Windows
+netstat -ano | findstr :5000
+taskkill /PID <PID> /F
+
+# Hoặc chạy QUICK_FIX_PORT_5000.bat
+```
+
+### Lỗi MongoDB connection
+
+- Kiểm tra MongoDB đã chạy chưa
+- Kiểm tra `MONGODB_URI` trong `.env`
+- Thử kết nối với MongoDB Compass
+
+### Lỗi Cloudinary upload
+
+- Kiểm tra credentials trong `.env`
+- Đảm bảo file ảnh không quá 5MB
+- Kiểm tra định dạng file (chỉ hỗ trợ: jpg, jpeg, png, gif, webp)
+
+### Lỗi Email không gửi được
+
+- Kiểm tra `EMAIL_USER` và `EMAIL_PASSWORD`
+- Với Gmail, cần tạo App Password (không dùng mật khẩu thường)
+- Kiểm tra firewall/antivirus có chặn không
+
+### Chatbot không hoạt động
+
+- Kiểm tra `GEMINI_API_KEY` trong `.env`
+- Đảm bảo đã cài `@google/generative-ai`
+- Kiểm tra rate limiting (tối đa 20 requests/phút)
+
+## Performance Tips
+
+1. **Database Indexing**: Đã có indexes cho các trường thường query
+2. **Pagination**: Tất cả API list đều hỗ trợ pagination
+3. **Image Optimization**: Ảnh được upload lên Cloudinary và tự động optimize
+4. **Caching**: Có thể thêm caching cho products và posts (xem `GỢI_Ý_CẢI_THIỆN.md`)
+
+## Security Best Practices
+
+1. ✅ **JWT Tokens**: Lưu trong localStorage, có expiration
+2. ✅ **Password Hashing**: Sử dụng bcrypt với salt rounds
+3. ✅ **Input Validation**: Sử dụng express-validator
+4. ✅ **Rate Limiting**: Áp dụng cho chatbot và các API quan trọng
+5. ✅ **CORS**: Chỉ cho phép frontend URL
+6. ✅ **Helmet**: Security headers tự động
+7. ✅ **Environment Variables**: Không commit `.env` file
+
+## Development Workflow
+
+1. **Clone repository**
+   ```bash
+   git clone <repository-url>
+   cd "4 Năm ĐH/ĐỒ ÁN"
+   ```
+
+2. **Setup Backend**
+   ```bash
+   cd backend
+   npm install
+   # Tạo file .env và điền thông tin
+   npm run dev
+   ```
+
+3. **Setup Frontend**
+   ```bash
+   cd frontend
+   npm install
+   # Tạo file .env và điền VITE_API_URL
+   npm run dev
+   ```
+
+4. **Tạo Super Admin** (lần đầu)
+   ```bash
+   # Chạy SET_SUPER_ADMIN.bat hoặc
+   node backend/createAdmin.js
+   ```
+
+## Roadmap & Cải thiện
+
+Xem file `GỢI_Ý_CẢI_THIỆN.md` để biết các gợi ý cải thiện:
+- Unit tests
+- API documentation (Swagger)
+- Logging chuyên nghiệp (Winston)
+- Caching (Redis/Node-cache)
+- Error handling tập trung
+- Và nhiều hơn nữa...
+
+## Contributing
+
+1. Fork repository
+2. Tạo feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
 
 ## Tác giả
 
@@ -326,4 +534,11 @@ Dự án được phát triển cho sinh viên Đại học Đại Nam
 ## License
 
 MIT
+
+---
+
+**📚 Tài liệu tham khảo:**
+- [LOGIC_MUA_HANG.md](./LOGIC_MUA_HANG.md) - Logic chi tiết về quy trình mua hàng
+- [GỢI_Ý_CẢI_THIỆN.md](./GỢI_Ý_CẢI_THIỆN.md) - Gợi ý cải thiện dự án
+- [HUONG_DAN_PUSH_GITHUB.md](./HUONG_DAN_PUSH_GITHUB.md) - Hướng dẫn push code lên GitHub
 
