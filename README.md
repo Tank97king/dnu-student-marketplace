@@ -33,14 +33,40 @@ DNU Marketplace là một nền tảng web cho phép sinh viên Đại học Đ�
 
 ### Giao dịch
 - Gửi đề nghị giá
+- Mua ngay (Buy Now) với nhiều phương thức nhận hàng
+- Tạo đơn hàng với thông tin giao hàng chi tiết
 - Đánh dấu đã bán
 - Đánh giá sau giao dịch
+
+### Hệ thống thanh toán ⭐ MỚI
+- Tạo thanh toán với mã giao dịch duy nhất
+- Quét QR code ngân hàng để chuyển khoản
+- Upload ảnh biên lai chuyển khoản
+- Admin xác nhận/từ chối thanh toán
+- Lịch sử thanh toán cho người mua
+- Quản lý thanh toán cho admin
+- Tự động hủy thanh toán sau 24h nếu không upload biên lai
+- Thông báo real-time về trạng thái thanh toán
+
+### Quản lý Bank QR ⭐ MỚI
+- Quản lý QR code ngân hàng (chỉ Super Admin)
+- Tạo/cập nhật/xóa QR code
+- Hiển thị thông tin ngân hàng và QR code cho người mua
+- Kích hoạt/vô hiệu hóa QR code
 
 ### Quản trị
 - Dashboard với thống kê
 - Duyệt bài đăng
 - Quản lý người dùng
 - Xử lý báo cáo
+- Quản lý thanh toán
+- Quản lý Bank QR (Super Admin)
+
+### Tự động hóa (Cron Jobs) ⭐ MỚI
+- Tự động hủy đơn hàng hết hạn (24 giờ)
+- Tự động hết hạn đề nghị giá (7 ngày)
+- Tự động hủy thanh toán chưa upload biên lai (24 giờ)
+- Thông báo tự động khi hết hạn
 
 ## Công nghệ sử dụng
 
@@ -48,11 +74,12 @@ DNU Marketplace là một nền tảng web cho phép sinh viên Đại học Đ�
 - Node.js + Express.js
 - MongoDB (Mongoose)
 - JWT Authentication
-- Socket.IO (real-time chat)
+- Socket.IO (real-time chat và notifications)
 - Cloudinary (image storage)
 - Nodemailer (email)
 - Multer (file upload)
 - bcryptjs (password hashing)
+- Cron Jobs (node-cron) cho tự động hóa
 
 ### Frontend
 - React 18
@@ -139,15 +166,36 @@ Frontend sẽ chạy tại `http://localhost:3000`
 ├── backend/
 │   ├── config/
 │   ├── controllers/
+│   │   ├── paymentController.js ⭐ MỚI
+│   │   ├── bankQRController.js ⭐ MỚI
+│   │   └── ...
+│   ├── cron/ ⭐ MỚI
+│   │   └── orderExpiration.js
 │   ├── middleware/
 │   ├── models/
+│   │   ├── Payment.js ⭐ MỚI
+│   │   ├── BankQR.js ⭐ MỚI
+│   │   └── ...
 │   ├── routes/
+│   │   ├── payment.js ⭐ MỚI
+│   │   ├── bankQR.js ⭐ MỚI
+│   │   └── ...
 │   ├── utils/
+│   │   ├── generateTransactionCode.js ⭐ MỚI
+│   │   └── ...
 │   └── server.js
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
+│   │   │   ├── BuyNowModal.jsx ⭐ MỚI
+│   │   │   ├── PaymentModal.jsx ⭐ MỚI
+│   │   │   ├── Toast.jsx ⭐ MỚI
+│   │   │   └── ...
 │   │   ├── pages/
+│   │   │   ├── MyPayments.jsx ⭐ MỚI
+│   │   │   ├── PaymentManagement.jsx ⭐ MỚI
+│   │   │   ├── BankQRManagement.jsx ⭐ MỚI
+│   │   │   └── ...
 │   │   ├── store/
 │   │   └── utils/
 │   └── public/
@@ -185,6 +233,31 @@ Frontend sẽ chạy tại `http://localhost:3000`
 - `GET /api/messages/conversations` - Lấy danh sách cuộc trò chuyện
 - `GET /api/messages/:conversationId` - Lấy tin nhắn trong cuộc trò chuyện
 
+### Orders
+- `POST /api/orders` - Tạo đơn hàng (Buy Now)
+- `GET /api/orders` - Lấy danh sách đơn hàng
+- `GET /api/orders/:id` - Lấy chi tiết đơn hàng
+- `PUT /api/orders/:id/confirm` - Xác nhận đơn hàng (seller)
+- `PUT /api/orders/:id/cancel` - Hủy đơn hàng
+- `PUT /api/orders/:id/complete` - Hoàn thành đơn hàng
+
+### Payments ⭐ MỚI
+- `POST /api/payments` - Tạo thanh toán
+- `GET /api/payments/order/:orderId` - Lấy thanh toán theo đơn hàng
+- `PUT /api/payments/:id/upload-proof` - Upload ảnh biên lai
+- `GET /api/payments/my-payments` - Lịch sử thanh toán của người mua
+- `GET /api/payments/pending` - Danh sách thanh toán chờ xác nhận (Admin)
+- `GET /api/payments` - Tất cả thanh toán (Admin)
+- `PUT /api/payments/:id/confirm` - Xác nhận thanh toán (Admin)
+- `PUT /api/payments/:id/reject` - Từ chối thanh toán (Admin)
+
+### Bank QR ⭐ MỚI
+- `GET /api/bankqr` - Lấy danh sách QR code (Admin)
+- `GET /api/bankqr/:id` - Lấy chi tiết QR code (Admin)
+- `POST /api/bankqr` - Tạo QR code (Super Admin)
+- `PUT /api/bankqr/:id` - Cập nhật QR code (Super Admin)
+- `DELETE /api/bankqr/:id` - Xóa QR code (Super Admin)
+
 ### Admin
 - `GET /api/admin/stats` - Lấy thống kê
 - `GET /api/admin/users` - Lấy danh sách users
@@ -200,6 +273,9 @@ Frontend sẽ chạy tại `http://localhost:3000`
 - Rate limiting
 - Helmet.js cho security headers
 - CORS protection
+- Phân quyền Admin và Super Admin
+- Mã giao dịch duy nhất cho mỗi thanh toán
+- Xác minh thanh toán bởi admin trước khi xác nhận đơn hàng
 
 ## Triển khai
 
@@ -213,6 +289,35 @@ Frontend sẽ chạy tại `http://localhost:3000`
 - Build: `npm run build`
 - Deploy lên Vercel hoặc Netlify
 - Configure VITE_API_URL
+
+## Quy trình thanh toán ⭐ MỚI
+
+1. **Người mua tạo đơn hàng**: Chọn "Mua ngay" và điền thông tin giao hàng
+2. **Người bán xác nhận**: Xác nhận đơn hàng trong vòng 24 giờ
+3. **Người mua thanh toán**:
+   - Click "Thanh toán" để tạo mã giao dịch
+   - Quét QR code ngân hàng
+   - Chuyển khoản với nội dung là mã giao dịch
+   - Upload ảnh biên lai trong vòng 24 giờ
+4. **Admin xác nhận**: Admin kiểm tra và xác nhận/từ chối thanh toán
+5. **Hoàn tất**: Đơn hàng được xác nhận sau khi thanh toán được duyệt
+
+## Tính năng tự động hóa ⭐ MỚI
+
+Hệ thống tự động chạy các tác vụ định kỳ:
+
+- **Hết hạn đơn hàng**: Đơn hàng chờ xác nhận quá 24 giờ sẽ tự động hủy
+- **Hết hạn đề nghị giá**: Đề nghị giá quá 7 ngày sẽ tự động hết hạn
+- **Hết hạn thanh toán**: Thanh toán chưa upload biên lai sau 24 giờ sẽ tự động hủy
+
+Tất cả các sự kiện hết hạn đều gửi thông báo real-time cho người dùng liên quan.
+
+## Lưu ý quan trọng
+
+- Mã giao dịch phải được nhập chính xác vào nội dung chuyển khoản
+- Người mua có 24 giờ để upload ảnh biên lai sau khi tạo thanh toán
+- Chỉ Super Admin mới có thể quản lý Bank QR
+- Đơn hàng sẽ tự động hủy nếu không được xác nhận trong 24 giờ
 
 ## Tác giả
 

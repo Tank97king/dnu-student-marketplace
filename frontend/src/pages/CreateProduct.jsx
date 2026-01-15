@@ -185,28 +185,28 @@ export default function CreateProduct() {
 
   return (
     <div className="max-w-3xl mx-auto py-6 px-4">
-      <h1 className="text-3xl font-bold mb-6">Đăng bán sản phẩm</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Đăng bán sản phẩm</h1>
 
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Tiêu đề *</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tiêu đề *</label>
           <input
             type="text"
             name="title"
             required
-            className="w-full px-4 py-2 border rounded-lg"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             value={formData.title}
             onChange={handleChange}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Mô tả *</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mô tả *</label>
           <textarea
             name="description"
             required
             rows="5"
-            className="w-full px-4 py-2 border rounded-lg"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             value={formData.description}
             onChange={handleChange}
           />
@@ -214,23 +214,23 @@ export default function CreateProduct() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Giá (VNĐ) *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Giá (VNĐ) *</label>
             <input
               type="number"
               name="price"
               required
-              className="w-full px-4 py-2 border rounded-lg"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={formData.price}
               onChange={handleChange}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Danh mục *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Danh mục *</label>
             <select
               name="category"
               required
-              className="w-full px-4 py-2 border rounded-lg"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={formData.category}
               onChange={handleChange}
             >
@@ -249,10 +249,10 @@ export default function CreateProduct() {
         {/* Subcategory dropdown - hiển thị khi category có subcategories */}
         {hasSubcategories && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Loại {formData.category === 'Electronics' ? 'điện tử' : formData.category === 'Books' ? 'sách' : formData.category === 'Clothing' ? 'quần áo' : formData.category === 'Stationery' ? 'văn phòng phẩm' : formData.category === 'Sports' ? 'thể thao' : formData.category === 'Furniture' ? 'nội thất' : ''}</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Loại {formData.category === 'Electronics' ? 'điện tử' : formData.category === 'Books' ? 'sách' : formData.category === 'Clothing' ? 'quần áo' : formData.category === 'Stationery' ? 'văn phòng phẩm' : formData.category === 'Sports' ? 'thể thao' : formData.category === 'Furniture' ? 'nội thất' : ''}</label>
             <select
               name="subcategory"
-              className="w-full px-4 py-2 border rounded-lg"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={formData.subcategory}
               onChange={handleChange}
             >
@@ -267,28 +267,29 @@ export default function CreateProduct() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Tình trạng *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tình trạng *</label>
             <select
               name="condition"
               required
-              className="w-full px-4 py-2 border rounded-lg"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={formData.condition}
               onChange={handleChange}
             >
               <option value="">Chọn tình trạng</option>
-              <option value="New">Mới</option>
-              <option value="Like New">Như mới</option>
-              <option value="Good">Tốt</option>
-              <option value="Fair">Khá</option>
+              <option value="Rất tốt">Rất tốt</option>
+              <option value="Tốt">Tốt</option>
+              <option value="Khá">Khá</option>
+              <option value="Đã dùng nhiều">Đã dùng nhiều</option>
+              <option value="Cần sửa chữa">Cần sửa chữa</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Khu vực *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Khu vực *</label>
             <select
               name="location"
               required
-              className="w-full px-4 py-2 border rounded-lg"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={formData.location}
               onChange={handleChange}
             >
@@ -301,19 +302,19 @@ export default function CreateProduct() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Tags (phân cách bằng dấu phẩy)</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags (phân cách bằng dấu phẩy)</label>
           <input
             type="text"
             name="tags"
             placeholder="ví dụ: sách giáo trình, toán học, cơ bản"
-            className="w-full px-4 py-2 border rounded-lg"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             value={formData.tags}
             onChange={handleChange}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Hình ảnh (tối đa 5 hình, mỗi ảnh tối đa 2MB) *
           </label>
           <input
@@ -321,15 +322,15 @@ export default function CreateProduct() {
             multiple
             accept="image/jpeg,image/jpg,image/png,image/webp"
             onChange={handleImageChange}
-            className="w-full px-4 py-2 border rounded-lg"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-gray-600 dark:file:text-gray-200"
             required={formData.images.length === 0}
           />
           {imageError && (
-            <p className="mt-2 text-sm text-red-600">{imageError}</p>
+            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{imageError}</p>
           )}
           {formData.images.length > 0 && !imageError && (
             <div className="mt-2">
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
                 Đã chọn {formData.images.length}/5 hình ảnh
               </p>
               <div className="grid grid-cols-5 gap-2 mt-2">
@@ -348,7 +349,7 @@ export default function CreateProduct() {
               </div>
             </div>
           )}
-          <p className="mt-2 text-xs text-gray-500">
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             Định dạng: JPG, PNG, WebP | Kích thước: Tối đa 2MB/ảnh | Số lượng: Tối đa 5 ảnh
           </p>
         </div>
@@ -356,7 +357,7 @@ export default function CreateProduct() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+          className="w-full bg-orange-500 dark:bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-600 dark:hover:bg-orange-700 disabled:opacity-50 transition-colors"
         >
           {loading ? 'Đang đăng...' : 'Đăng sản phẩm'}
         </button>
@@ -365,25 +366,25 @@ export default function CreateProduct() {
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md mx-4 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-md mx-4 text-center">
             <div className="mb-4">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/20">
+                <svg className="h-6 w-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
               Đăng bán thành công!
             </h3>
-            <p className="text-sm text-gray-500 mb-6">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
               Sản phẩm của bạn đã được đăng thành công.<br/>
-              <span className="font-semibold text-orange-600">Sản phẩm sẽ được duyệt trong 24h</span> và sẽ hiển thị trên website sau khi admin duyệt.
+              <span className="font-semibold text-orange-600 dark:text-orange-400">Sản phẩm sẽ được duyệt trong 24h</span> và sẽ hiển thị trên website sau khi admin duyệt.
             </p>
             <div className="flex space-x-3">
               <button
                 onClick={handleCloseModal}
-                className="flex-1 bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700"
+                className="flex-1 bg-orange-500 dark:bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-600 dark:hover:bg-orange-700 transition-colors"
               >
                 Xem sản phẩm
               </button>
@@ -402,7 +403,7 @@ export default function CreateProduct() {
                     images: []
                   })
                 }}
-                className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400"
+                className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
               >
                 Đăng tiếp
               </button>

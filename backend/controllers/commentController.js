@@ -1,9 +1,10 @@
 const Comment = require('../models/Comment');
 const Product = require('../models/Product');
+const Post = require('../models/Post');
 const { createAndEmitNotification } = require('../utils/notifications');
 
-// @desc    Create comment
-// @route   POST /api/products/:productId/comments
+// @desc    Create comment (for product or post)
+// @route   POST /api/products/:productId/comments or POST /api/posts/:postId/comments
 // @access  Private
 exports.createComment = async (req, res) => {
   try {
@@ -16,29 +17,68 @@ exports.createComment = async (req, res) => {
       });
     }
 
-    console.log('Creating comment for product:', req.params.id, 'by user:', req.user.id);
-    const comment = await Comment.create({
-      productId: req.params.id,
+    const commentData = {
       userId: req.user.id,
       content: content.trim()
-    });
+    };
 
+    // Determine if it's a product or post comment
+    if (req.params.productId) {
+      commentData.productId = req.params.productId;
+    } else if (req.params.postId) {
+      commentData.postId = req.params.postId;
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu productId hoặc postId'
+      });
+    }
+
+    const comment = await Comment.create(commentData);
     await comment.populate('userId', 'name avatar');
-    console.log('Comment created successfully:', comment._id);
 
-    // Create notification for product owner
+    // Update comment count
+    if (commentData.productId) {
+      const product = await Product.findById(commentData.productId);
+      if (product) {
+        product.comments.push(comment._id);
+        await product.save();
+      }
+    } else if (commentData.postId) {
+      const post = await Post.findById(commentData.postId);
+      if (post) {
+        post.commentCount += 1;
+        await post.save();
+      }
+    }
+
+    // Create notification
     try {
-      const product = await Product.findById(req.params.id).populate('userId');
-      if (product && product.userId._id.toString() !== req.user.id) {
-        const io = req.app.get('io');
-        await createAndEmitNotification(
-          io,
-          product.userId._id,
-          'new_comment',
-          'Có bình luận mới',
-          `${req.user.name} đã bình luận trên sản phẩm "${product.title}" của bạn`,
-          { productId: product._id, commentId: comment._id, productName: product.title }
-        );
+      const io = req.app.get('io');
+      if (commentData.productId) {
+        const product = await Product.findById(commentData.productId).populate('userId');
+        if (product && product.userId._id.toString() !== req.user.id) {
+          await createAndEmitNotification(
+            io,
+            product.userId._id,
+            'new_comment',
+            'Có bình luận mới',
+            `${req.user.name} đã bình luận trên sản phẩm "${product.title}" của bạn`,
+            { productId: product._id, commentId: comment._id, productName: product.title }
+          );
+        }
+      } else if (commentData.postId) {
+        const post = await Post.findById(commentData.postId).populate('userId');
+        if (post && post.userId._id.toString() !== req.user.id) {
+          await createAndEmitNotification(
+            io,
+            post.userId._id,
+            'new_comment',
+            'Có bình luận mới',
+            `${req.user.name} đã bình luận trên bài đăng của bạn`,
+            { postId: post._id, commentId: comment._id }
+          );
+        }
       }
     } catch (notifError) {
       console.error('Error creating comment notification:', notifError);
@@ -57,18 +97,28 @@ exports.createComment = async (req, res) => {
   }
 };
 
-// @desc    Get comments
-// @route   GET /api/products/:productId/comments
+// @desc    Get comments (for product or post)
+// @route   GET /api/products/:productId/comments or GET /api/posts/:postId/comments
 // @access  Public
 exports.getComments = async (req, res) => {
   try {
-    console.log('Getting comments for product:', req.params.id);
-    const comments = await Comment.find({ productId: req.params.id })
-      .populate('userId', 'name avatar')
-      .populate('replies.userId', 'name avatar')
+    const query = {};
+    if (req.params.productId) {
+      query.productId = req.params.productId;
+    } else if (req.params.postId) {
+      query.postId = req.params.postId;
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu productId hoặc postId'
+      });
+    }
+
+    const comments = await Comment.find(query)
+      .populate('userId', 'name avatar nickname')
+      .populate('replies.userId', 'name avatar nickname')
       .sort({ createdAt: -1 });
 
-    console.log('Found comments:', comments.length);
     res.json({
       success: true,
       data: comments
@@ -117,6 +167,47 @@ exports.replyToComment = async (req, res) => {
   }
 };
 
+// @desc    Like/Unlike comment
+// @route   POST /api/comments/:commentId/like
+// @access  Private
+exports.likeComment = async (req, res) => {
+  try {
+    const comment = await Comment.findById(req.params.commentId);
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy bình luận'
+      });
+    }
+
+    const userId = req.user.id;
+    const isLiked = comment.likes.includes(userId);
+
+    if (isLiked) {
+      comment.likes = comment.likes.filter(id => id.toString() !== userId);
+    } else {
+      comment.likes.push(userId);
+    }
+
+    await comment.save();
+
+    res.json({
+      success: true,
+      data: {
+        isLiked: !isLiked,
+        likeCount: comment.likeCount
+      }
+    });
+  } catch (error) {
+    console.error('Error liking comment:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // @desc    Update comment
 // @route   PUT /api/comments/:commentId
 // @access  Private
@@ -151,7 +242,7 @@ exports.updateComment = async (req, res) => {
     comment.content = content.trim();
     await comment.save();
 
-    await comment.populate('userId', 'name avatar');
+    await comment.populate('userId', 'name avatar nickname');
 
     res.json({
       success: true,

@@ -8,6 +8,7 @@ const Comment = require('../models/Comment');
 const Bookmark = require('../models/Bookmark');
 const Notification = require('../models/Notification');
 const ProductView = require('../models/ProductView');
+const Payment = require('../models/Payment');
 const { createNotification } = require('./notificationController');
 const { createAndEmitNotification } = require('../utils/notifications');
 
@@ -241,6 +242,19 @@ exports.getStats = async (req, res) => {
     const soldProducts = await Product.countDocuments({ status: 'Sold' });
     const pendingProducts = await Product.countDocuments({ isApproved: false });
     
+    // Payment stats
+    const totalPayments = await Payment.countDocuments();
+    const confirmedPayments = await Payment.countDocuments({ status: 'confirmed' });
+    const pendingPayments = await Payment.countDocuments({ status: 'pending' });
+    const rejectedPayments = await Payment.countDocuments({ status: 'rejected' });
+    
+    // Total revenue from confirmed payments
+    const revenueResult = await Payment.aggregate([
+      { $match: { status: 'confirmed' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
+    
     // Category stats
     const categoryStats = await Product.aggregate([
       { $match: { isApproved: true } },
@@ -260,6 +274,13 @@ exports.getStats = async (req, res) => {
           available: availableProducts,
           sold: soldProducts,
           pending: pendingProducts
+        },
+        payments: {
+          total: totalPayments,
+          confirmed: confirmedPayments,
+          pending: pendingPayments,
+          rejected: rejectedPayments,
+          totalRevenue
         },
         categoryStats
       }
@@ -480,6 +501,162 @@ exports.checkEmailConfig = async (req, res) => {
         : 'Email chưa được cấu hình. Vui lòng kiểm tra file backend/.env'
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get revenue statistics
+// @route   GET /api/admin/revenue-stats
+// @access  Admin
+exports.getRevenueStats = async (req, res) => {
+  try {
+    const { timeRange = 'month' } = req.query; // 'day', 'week', 'month', 'year', 'all'
+    
+    // Calculate date range
+    const now = new Date();
+    let startDate = null;
+    
+    switch (timeRange) {
+      case 'day':
+        startDate = new Date(now.setDate(now.getDate() - 1));
+        break;
+      case 'week':
+        startDate = new Date(now.setDate(now.getDate() - 7));
+        break;
+      case 'month':
+        startDate = new Date(now.setMonth(now.getMonth() - 1));
+        break;
+      case 'year':
+        startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+        break;
+      default:
+        startDate = null;
+    }
+
+    const dateFilter = startDate ? { confirmedAt: { $gte: startDate }, status: 'confirmed' } : { status: 'confirmed' };
+
+    // Total revenue
+    const revenueResult = await Payment.aggregate([
+      { $match: { status: 'confirmed', ...dateFilter } },
+      { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+    ]);
+    const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
+    const totalTransactions = revenueResult.length > 0 ? revenueResult[0].count : 0;
+
+    // Revenue by status
+    const statusStats = await Payment.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          total: { $sum: '$amount' }
+        }
+      }
+    ]);
+
+    // Revenue by day (last 30 days)
+    const dailyRevenue = await Payment.aggregate([
+      {
+        $match: {
+          status: 'confirmed',
+          confirmedAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$confirmedAt' }
+          },
+          revenue: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Revenue by month (last 12 months)
+    const monthlyRevenue = await Payment.aggregate([
+      {
+        $match: {
+          status: 'confirmed',
+          confirmedAt: { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m', date: '$confirmedAt' }
+          },
+          revenue: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Top products by revenue
+    const topProducts = await Payment.aggregate([
+      { $match: { status: 'confirmed' } },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'orderId',
+          foreignField: '_id',
+          as: 'order'
+        }
+      },
+      { $unwind: '$order' },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'order.productId',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      { $unwind: '$product' },
+      {
+        $group: {
+          _id: '$product._id',
+          title: { $first: '$product.title' },
+          image: { $first: '$product.images' },
+          revenue: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // Average transaction value
+    const avgTransaction = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          totalRevenue,
+          totalTransactions,
+          avgTransaction: Math.round(avgTransaction),
+          timeRange
+        },
+        statusStats: statusStats.reduce((acc, stat) => {
+          acc[stat._id] = {
+            count: stat.count,
+            total: stat.total
+          };
+          return acc;
+        }, {}),
+        dailyRevenue,
+        monthlyRevenue,
+        topProducts
+      }
+    });
+  } catch (error) {
+    console.error('Error getting revenue stats:', error);
     res.status(500).json({
       success: false,
       message: error.message

@@ -26,6 +26,14 @@ import Offers from './pages/Offers'
 import MyPromotions from './pages/MyPromotions'
 import SellerDashboard from './pages/SellerDashboard'
 import CompareProducts from './pages/CompareProducts'
+import PaymentManagement from './pages/PaymentManagement'
+import BankQRManagement from './pages/BankQRManagement'
+import MyPayments from './pages/MyPayments'
+import RevenueStats from './pages/RevenueStats'
+import NotificationSettings from './pages/NotificationSettings'
+import Feed from './pages/Feed'
+import PostDetailPage from './pages/PostDetail'
+import Explore from './pages/Explore'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 
@@ -41,10 +49,15 @@ function App() {
         <Route path="/verify-otp" element={<VerifyOTP />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-otp-reset-password" element={<VerifyOTPResetPassword />} />
+        <Route path="/feed" element={<Feed />} />
+        <Route path="/posts/:id" element={<PostDetailPage />} />
+        <Route path="/explore" element={<Explore />} />
+        <Route path="/hashtags/:hashtag" element={<Explore />} />
         <Route path="/products" element={<Products />} />
         <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/category/:categoryName" element={<CategoryPage />} />
         <Route path="/user/:userId" element={<UserProfile />} />
+        <Route path="/users/:userId/profile" element={<UserProfile />} />
         <Route path="/user/:userId/reviews" element={<UserReviews />} />
         <Route path="/help" element={<Help />} />
         
@@ -58,17 +71,22 @@ function App() {
           <Route path="/chat" element={<Chat />} />
           <Route path="/chat/:userId" element={<Chat />} />
           <Route path="/orders" element={<Orders />} />
+          <Route path="/payments" element={<MyPayments />} />
           <Route path="/offers" element={<Offers />} />
           <Route path="/seller-dashboard" element={<SellerDashboard />} />
           <Route path="/seller-dashboard/:userId" element={<SellerDashboard />} />
           <Route path="/compare" element={<CompareProducts />} />
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/my-promotions" element={<MyPromotions />} />
+          <Route path="/notifications/settings" element={<NotificationSettings />} />
         </Route>
         
         {/* Admin Routes */}
         <Route element={<AdminRoute />}>
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/payments" element={<PaymentManagement />} />
+          <Route path="/admin/bankqr" element={<BankQRManagement />} />
+          <Route path="/admin/revenue" element={<RevenueStats />} />
         </Route>
       </Routes>
     </Layout>

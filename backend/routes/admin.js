@@ -8,7 +8,8 @@ const {
   getReports,
   getStats,
   rejectProduct,
-  checkEmailConfig
+  checkEmailConfig,
+  getRevenueStats
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -19,6 +20,7 @@ router.use(protect);
 router.use(authorize());
 
 router.get('/stats', getStats);
+router.get('/revenue-stats', getRevenueStats);
 router.get('/check-email-config', checkEmailConfig);
 router.get('/users', getUsers);
 router.put('/users/:id', updateUser);

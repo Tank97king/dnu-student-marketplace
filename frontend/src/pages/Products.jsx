@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, useLocation } from 'react-router-dom'
 import { fetchProducts } from '../store/slices/productSlice'
+import SearchAutocomplete from '../components/SearchAutocomplete'
 
 export default function Products() {
   const dispatch = useDispatch()
@@ -15,7 +16,9 @@ export default function Products() {
     maxPrice: '',
     condition: '',
     dateRange: '', // 'today', 'week', 'month', 'all'
-    subcategory: ''
+    subcategory: '',
+    minRating: '',
+    tags: ''
   })
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [priceRange, setPriceRange] = useState([0, 10000000]) // Min và Max giá
@@ -213,13 +216,11 @@ export default function Products() {
           
           <div className={`grid grid-cols-1 md:grid-cols-2 ${hasSubcategories ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4`}>
             <div>
-              <input
-                type="text"
-                name="search"
-                placeholder="Tìm kiếm..."
-                className="w-full px-4 py-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400"
+              <SearchAutocomplete
                 value={filters.search}
-                onChange={handleFilterChange}
+                onChange={(value) => setFilters({ ...filters, search: value })}
+                onSelect={(value) => setFilters({ ...filters, search: value })}
+                placeholder="Tìm kiếm..."
               />
             </div>
             <div>
@@ -275,10 +276,13 @@ export default function Products() {
                 className="w-full px-4 py-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
                 onChange={(e) => dispatch(fetchProducts({ ...filters, sort: e.target.value }))}
               >
-                <option value="-createdAt">Mới nhất</option>
-                <option value="createdAt">Cũ nhất</option>
-                <option value="price">Giá thấp đến cao</option>
-                <option value="-price">Giá cao đến thấp</option>
+                <option value="relevance">Phù hợp nhất</option>
+                <option value="newest">Mới nhất</option>
+                <option value="oldest">Cũ nhất</option>
+                <option value="price-asc">Giá thấp đến cao</option>
+                <option value="price-desc">Giá cao đến thấp</option>
+                <option value="rating">Đánh giá cao nhất</option>
+                <option value="popular">Phổ biến nhất</option>
               </select>
             </div>
           </div>
@@ -361,11 +365,11 @@ export default function Products() {
                   onChange={handleFilterChange}
                 >
                   <option value="">Tất cả tình trạng</option>
-                  <option value="New">Mới</option>
-                  <option value="Like New">Như mới</option>
-                  <option value="Good">Tốt</option>
-                  <option value="Fair">Khá</option>
-                  <option value="Poor">Kém</option>
+                  <option value="Rất tốt">Rất tốt</option>
+                  <option value="Tốt">Tốt</option>
+                  <option value="Khá">Khá</option>
+                  <option value="Đã dùng nhiều">Đã dùng nhiều</option>
+                  <option value="Cần sửa chữa">Cần sửa chữa</option>
                 </select>
               </div>
 
@@ -385,6 +389,40 @@ export default function Products() {
                   <option value="week">7 ngày qua</option>
                   <option value="month">30 ngày qua</option>
                 </select>
+              </div>
+
+              {/* Rating Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Đánh giá tối thiểu
+                </label>
+                <select
+                  name="minRating"
+                  className="w-full px-4 py-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  value={filters.minRating}
+                  onChange={handleFilterChange}
+                >
+                  <option value="">Tất cả đánh giá</option>
+                  <option value="4">4 sao trở lên</option>
+                  <option value="3">3 sao trở lên</option>
+                  <option value="2">2 sao trở lên</option>
+                  <option value="1">1 sao trở lên</option>
+                </select>
+              </div>
+
+              {/* Tags Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Tags (phân cách bằng dấu phẩy)
+                </label>
+                <input
+                  type="text"
+                  name="tags"
+                  placeholder="Ví dụ: laptop, gaming, mới"
+                  className="w-full px-4 py-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400"
+                  value={filters.tags}
+                  onChange={handleFilterChange}
+                />
               </div>
             </div>
           )}

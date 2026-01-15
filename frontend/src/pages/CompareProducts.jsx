@@ -68,14 +68,24 @@ export default function CompareProducts() {
   };
 
   const getConditionText = (condition) => {
-    const map = {
+    // Map cả giá trị cũ (tiếng Anh) và mới (tiếng Việt)
+    const conditionMap = {
+      // Giá trị mới (tiếng Việt)
+      'Rất tốt': 'Rất tốt',
+      'Tốt': 'Tốt',
+      'Khá': 'Khá',
+      'Đã dùng nhiều': 'Đã dùng nhiều',
+      'Cần sửa chữa': 'Cần sửa chữa',
+      // Giá trị cũ (tiếng Anh) - map sang tiếng Việt
       'New': 'Mới',
       'Like New': 'Như mới',
+      'Excellent': 'Rất tốt',
       'Good': 'Tốt',
       'Fair': 'Khá',
-      'Poor': 'Kém'
+      'Used': 'Đã dùng nhiều',
+      'NeedsRepair': 'Cần sửa chữa'
     };
-    return map[condition] || condition;
+    return conditionMap[condition] || condition || '';
   };
 
   if (products.length === 0) {

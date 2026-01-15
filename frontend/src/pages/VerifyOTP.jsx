@@ -100,10 +100,10 @@ export default function VerifyOTP() {
 
   if (!email) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="max-w-md w-full text-center">
-          <p className="text-red-600 mb-4">Không tìm thấy thông tin email. Vui lòng đăng ký lại.</p>
-          <Link to="/register" className="text-primary-600 hover:text-primary-500">
+          <p className="text-red-600 dark:text-red-400 mb-4">Không tìm thấy thông tin email. Vui lòng đăng ký lại.</p>
+          <Link to="/register" className="text-orange-600 dark:text-orange-400 hover:text-orange-500">
             Quay lại đăng ký
           </Link>
         </div>
@@ -112,23 +112,23 @@ export default function VerifyOTP() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
             Xác minh tài khoản
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Chúng tôi đã gửi mã xác minh 6 số đến email <strong>{email}</strong>
+          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+            Chúng tôi đã gửi mã xác minh 6 số đến email <strong className="text-gray-900 dark:text-white">{email}</strong>
           </p>
-          <p className="mt-1 text-center text-xs text-gray-500">
+          <p className="mt-1 text-center text-xs text-gray-500 dark:text-gray-400">
             Vui lòng kiểm tra hộp thư Outlook của bạn
           </p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-400 px-4 py-3 rounded">
               {error}
             </div>
           )}
@@ -146,7 +146,7 @@ export default function VerifyOTP() {
                   onChange={(e) => handleCodeChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={handlePaste}
-                  className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   autoFocus={index === 0}
                 />
               ))}
@@ -157,7 +157,7 @@ export default function VerifyOTP() {
                 type="button"
                 onClick={handleResend}
                 disabled={resendCooldown > 0 || loading}
-                className="text-sm text-primary-600 hover:text-primary-500 disabled:text-gray-400 disabled:cursor-not-allowed"
+                className="text-sm text-orange-600 dark:text-orange-400 hover:text-orange-500 disabled:text-gray-400 dark:disabled:text-gray-500 disabled:cursor-not-allowed"
               >
                 {resendCooldown > 0
                   ? `Gửi lại mã sau ${resendCooldown}s`
@@ -170,14 +170,14 @@ export default function VerifyOTP() {
             <button
               type="submit"
               disabled={loading || code.join('').length !== 6}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Đang xác minh...' : 'Xác minh'}
             </button>
           </div>
 
           <div className="text-center">
-            <Link to="/register" className="text-sm text-gray-600 hover:text-gray-500">
+            <Link to="/register" className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
               Quay lại đăng ký
             </Link>
           </div>

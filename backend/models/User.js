@@ -96,10 +96,30 @@ const userSchema = new mongoose.Schema({
     trim: true,
     maxlength: 300
   },
+  coverPhoto: {
+    type: String,
+    default: ''
+  },
+  website: {
+    type: String,
+    trim: true
+  },
   nickname: {
     type: String,
     trim: true,
     sparse: true
+  },
+  followerCount: {
+    type: Number,
+    default: 0
+  },
+  followingCount: {
+    type: Number,
+    default: 0
+  },
+  postCount: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

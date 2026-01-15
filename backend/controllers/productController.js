@@ -79,15 +79,21 @@ exports.getProducts = async (req, res) => {
       maxPrice, 
       sort,
       dateRange,
+      minRating,
+      tags,
       page = 1,
       limit = 20
     } = req.query;
 
     const query = {};
     
-    // Search
+    // Search - improved to support regex if text index not available
     if (search) {
-      query.$text = { $search: search };
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { tags: { $in: [new RegExp(search, 'i')] } }
+      ];
     }
     
     // Filters
@@ -105,20 +111,40 @@ exports.getProducts = async (req, res) => {
     if (dateRange) {
       query.createdAt = { $gte: new Date(dateRange) };
     }
+
+    // Rating filter
+    if (minRating) {
+      query.averageRating = { $gte: Number(minRating) };
+    }
+
+    // Tags filter
+    if (tags) {
+      const tagArray = Array.isArray(tags) ? tags : tags.split(',');
+      query.tags = { $in: tagArray.map(tag => tag.trim()) };
+    }
     
     // Status - chỉ hiển thị sản phẩm Available và đã được duyệt
     query.status = 'Available';
     query.isApproved = true; // Chỉ hiển thị sản phẩm đã được duyệt (áp dụng cho tất cả)
 
-    // Sort
-    const sortOptions = {
-      'price-asc': { price: 1 },
-      'price-desc': { price: -1 },
-      'newest': { createdAt: -1 },
-      'oldest': { createdAt: 1 }
-    };
+    // Sort - improved with relevance
+    let sortOption = { createdAt: -1 }; // default
     
-    const sortOption = sortOptions[sort] || { createdAt: -1 };
+    if (sort === 'price-asc') {
+      sortOption = { price: 1 };
+    } else if (sort === 'price-desc') {
+      sortOption = { price: -1 };
+    } else if (sort === 'newest' || sort === '-createdAt') {
+      sortOption = { createdAt: -1 };
+    } else if (sort === 'oldest' || sort === 'createdAt') {
+      sortOption = { createdAt: 1 };
+    } else if (sort === 'rating') {
+      sortOption = { averageRating: -1, totalReviews: -1 };
+    } else if (sort === 'popular') {
+      sortOption = { viewCount: -1, favoriteCount: -1 };
+    } else if (sort === 'relevance') {
+      sortOption = search ? { viewCount: -1, averageRating: -1 } : { createdAt: -1 };
+    }
 
     // Pagination
     const skip = (page - 1) * limit;

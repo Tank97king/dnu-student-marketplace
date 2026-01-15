@@ -12,7 +12,8 @@ export default function UserProfile() {
   const [products, setProducts] = useState([]);
   const [productCounts, setProductCounts] = useState({ available: 0, sold: 0 });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('available');
+  const [activeTab, setActiveTab] = useState('posts');
+  const [posts, setPosts] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
 
   useEffect(() => {
@@ -75,15 +76,32 @@ export default function UserProfile() {
   useEffect(() => {
     if (profile) {
       loadProductCounts();
-      loadProducts(activeTab);
+      if (activeTab === 'posts') {
+        loadPosts();
+      } else {
+        loadProducts(activeTab);
+      }
     }
   }, [userId, profile]);
 
   useEffect(() => {
     if (profile) {
-      loadProducts(activeTab);
+      if (activeTab === 'posts') {
+        loadPosts();
+      } else {
+        loadProducts(activeTab);
+      }
     }
   }, [activeTab]);
+
+  const loadPosts = async () => {
+    try {
+      const response = await api.get(`/posts/user/${userId}`);
+      setPosts(response.data.data || []);
+    } catch (error) {
+      console.error('Error loading posts:', error);
+    }
+  };
 
   const handleFollow = async () => {
     if (!currentUser) {
@@ -290,6 +308,16 @@ export default function UserProfile() {
               <div className="border-b border-gray-200 dark:border-gray-700">
                 <div className="flex space-x-4 px-6">
                   <button
+                    onClick={() => setActiveTab('posts')}
+                    className={`py-4 px-2 border-b-2 font-medium transition-colors ${
+                      activeTab === 'posts'
+                        ? 'border-orange-500 text-orange-500'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Bài đăng ({profile.postCount || posts.length || 0})
+                  </button>
+                  <button
                     onClick={() => setActiveTab('available')}
                     className={`py-4 px-2 border-b-2 font-medium transition-colors ${
                       activeTab === 'available'
@@ -312,9 +340,46 @@ export default function UserProfile() {
                 </div>
               </div>
 
-              {/* Products Grid */}
+              {/* Content */}
               <div className="p-6">
-                {products.length === 0 ? (
+                {activeTab === 'posts' ? (
+                  posts.length === 0 ? (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500 dark:text-gray-400">
+                        Chưa có bài đăng nào
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {posts.map((post) => (
+                        <Link
+                          key={post._id}
+                          to={`/posts/${post._id}`}
+                          className="relative aspect-square group overflow-hidden rounded"
+                        >
+                          <img
+                            src={post.images?.[0] || 'https://via.placeholder.com/300'}
+                            alt={post.caption}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 flex items-center space-x-4 text-white">
+                              <span className="flex items-center space-x-1">
+                                <span>❤️</span>
+                                <span>{post.likeCount || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <span>💬</span>
+                                <span>{post.commentCount || 0}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )
+                ) : products.length === 0 ? (
                   <div className="text-center py-12">
                     <p className="text-gray-500 dark:text-gray-400">
                       {activeTab === 'available' 

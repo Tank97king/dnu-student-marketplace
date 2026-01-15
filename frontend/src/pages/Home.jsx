@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, useNavigate } from 'react-router-dom'
 import { fetchProducts } from '../store/slices/productSlice'
+import ProductRecommendations from '../components/ProductRecommendations'
+import SearchAutocomplete from '../components/SearchAutocomplete'
 
 export default function Home() {
   const dispatch = useDispatch()
@@ -88,7 +90,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    dispatch(fetchProducts({ limit: 8, sort: '-createdAt' }))
+    dispatch(fetchProducts({ limit: 4, sort: '-createdAt' }))
   }, [dispatch])
 
   const categories = [
@@ -159,7 +161,7 @@ export default function Home() {
 
       {/* Search Bar */}
       <div className="pt-4 pb-6 max-w-6xl mx-auto px-4">
-        <form onSubmit={handleSearch} className="flex items-center bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-600 shadow-lg overflow-hidden">
+        <form onSubmit={handleSearch} className="flex items-center bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-600 shadow-lg overflow-visible">
           {/* Category Dropdown */}
           <div className="relative flex-shrink-0">
             <select
@@ -198,18 +200,22 @@ export default function Home() {
             </div>
           )}
           
-          {/* Search Input */}
-          <div className="flex-1 flex items-center bg-transparent">
-            <svg className="w-5 h-5 text-gray-400 dark:text-gray-500 ml-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm sản phẩm..."
-              className="flex-1 px-4 py-4 bg-transparent text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none text-sm"
-            />
+          {/* Search Input with Autocomplete */}
+          <div className="flex-1 relative">
+            <div className="flex items-center bg-transparent relative">
+              <svg className="w-5 h-5 text-gray-400 dark:text-gray-500 ml-4 flex-shrink-0 absolute z-10 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <div className="flex-1 ml-10 relative">
+                <SearchAutocomplete
+                  value={searchQuery}
+                  onChange={(value) => setSearchQuery(value)}
+                  onSelect={(value) => setSearchQuery(value)}
+                  placeholder="Tìm sản phẩm..."
+                  inputClassName="flex-1 px-4 py-4 bg-transparent text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none text-sm border-0"
+                />
+              </div>
+            </div>
           </div>
           
           {/* Search Button */}
@@ -249,7 +255,7 @@ export default function Home() {
             <div className="text-center text-gray-800 dark:text-gray-200">Đang tải...</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {products?.slice(0, 8).map((product) => (
+              {products?.slice(0, 4).map((product) => (
                 <Link key={product._id} to={`/products/${product._id}`}>
                   <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
                     <div className="w-full h-48 overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-700">
@@ -282,6 +288,14 @@ export default function Home() {
               Xem tất cả sản phẩm →
             </Link>
           </div>
+        </div>
+      </div>
+
+      {/* Product Recommendations */}
+      <div className="pt-8 pb-10">
+        <div className="max-w-7xl mx-auto px-4">
+          <ProductRecommendations type="trending" />
+          <ProductRecommendations type="latest" />
         </div>
       </div>
     </div>

@@ -241,16 +241,16 @@ export default function EditProduct() {
   }
 
   if (loading) {
-    return <div className="text-center py-12">Đang tải...</div>
+    return <div className="text-center py-12 text-gray-800 dark:text-gray-200">Đang tải...</div>
   }
 
   if (!product) {
-    return <div className="text-center py-12">Không tìm thấy sản phẩm</div>
+    return <div className="text-center py-12 text-gray-800 dark:text-gray-200">Không tìm thấy sản phẩm</div>
   }
 
   return (
     <div className="max-w-3xl mx-auto py-6 px-4">
-      <h1 className="text-3xl font-bold mb-6">Chỉnh sửa sản phẩm</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Chỉnh sửa sản phẩm</h1>
 
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md space-y-6">
         <div>
@@ -343,10 +343,11 @@ export default function EditProduct() {
               onChange={handleChange}
             >
               <option value="">Chọn tình trạng</option>
-              <option value="New">Mới</option>
-              <option value="Like New">Như mới</option>
-              <option value="Good">Tốt</option>
-              <option value="Fair">Khá</option>
+              <option value="Rất tốt">Rất tốt</option>
+              <option value="Tốt">Tốt</option>
+              <option value="Khá">Khá</option>
+              <option value="Đã dùng nhiều">Đã dùng nhiều</option>
+              <option value="Cần sửa chữa">Cần sửa chữa</option>
             </select>
           </div>
 
@@ -417,7 +418,7 @@ export default function EditProduct() {
                 className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
               />
               {imageError && (
-                <p className="mt-2 text-sm text-red-600">{imageError}</p>
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{imageError}</p>
               )}
               {newImages.length > 0 && !imageError && (
                 <div className="grid grid-cols-5 gap-2 mt-2">
@@ -426,7 +427,7 @@ export default function EditProduct() {
                       <img
                         src={URL.createObjectURL(file)}
                         alt={`New ${index + 1}`}
-                        className="w-full h-20 object-cover rounded border"
+                        className="w-full h-20 object-cover rounded border border-gray-300 dark:border-gray-600"
                       />
                       <span className="absolute top-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
                         {(file.size / 1024 / 1024).toFixed(2)}MB
@@ -438,7 +439,7 @@ export default function EditProduct() {
             </>
           )}
           
-          <p className="mt-2 text-xs text-gray-500">
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             Định dạng: JPG, PNG, WebP | Kích thước: Tối đa 2MB/ảnh | Tổng số lượng: Tối đa 5 ảnh ({formData.images.length}/{5})
           </p>
         </div>
@@ -447,7 +448,7 @@ export default function EditProduct() {
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+            className="flex-1 bg-orange-500 dark:bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-600 dark:hover:bg-orange-700 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Đang cập nhật...' : 'Cập nhật sản phẩm'}
           </button>
@@ -491,7 +492,7 @@ export default function EditProduct() {
             </p>
             <button
               onClick={handleCloseModal}
-              className="w-full bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700"
+              className="w-full bg-orange-500 dark:bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-600 dark:hover:bg-orange-700 transition-colors"
             >
               Xem sản phẩm
             </button>

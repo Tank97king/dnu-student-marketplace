@@ -8,6 +8,22 @@ uploads/
 .vscode/
 .idea/
 
+# OS files
+Thumbs.db
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# Optional: Uncomment nếu không muốn push các file batch (giữ lại vì có thể hữu ích)
+# *.bat
+
 
 
 

@@ -217,7 +217,7 @@ const ReviewSection = ({ productId, sellerId, onReviewAdded }) => {
               className={`text-2xl ${
                 star <= rating
                   ? 'text-yellow-400'
-                  : 'text-gray-300'
+                  : 'text-gray-300 dark:text-gray-600'
               } hover:text-yellow-400 cursor-pointer`}
             >
               ★
@@ -389,7 +389,7 @@ const ReviewSection = ({ productId, sellerId, onReviewAdded }) => {
                       setShowForm(false);
                       setFormData({ rating: 0, comment: '', isSeller: false });
                     }}
-                    className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition-colors"
+                    className="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg transition-colors"
                   >
                     Hủy
                   </button>
@@ -400,7 +400,7 @@ const ReviewSection = ({ productId, sellerId, onReviewAdded }) => {
         ) : (
           <div className="mb-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-center">
             <p className="text-gray-600 dark:text-gray-400">Vui lòng đăng nhập để bình luận hoặc đánh giá</p>
-            <Link to="/login" className="text-primary-600 hover:underline">
+            <Link to="/login" className="text-primary-600 dark:text-primary-400 hover:underline">
               Đăng nhập ngay
             </Link>
           </div>
@@ -439,13 +439,13 @@ const ReviewSection = ({ productId, sellerId, onReviewAdded }) => {
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleEditComment(comment)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm"
                       >
                         ✏️ Sửa
                       </button>
                       <button
                         onClick={() => handleDeleteComment(comment._id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm"
                       >
                         🗑️ Xóa
                       </button>
@@ -543,13 +543,13 @@ const ReviewSection = ({ productId, sellerId, onReviewAdded }) => {
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleEditReview(review)}
-                          className="text-blue-600 hover:text-blue-800 text-sm"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm"
                         >
                           ✏️ Sửa
                         </button>
                         <button
                           onClick={() => handleDeleteReview(review._id)}
-                          className="text-red-600 hover:text-red-800 text-sm"
+                          className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm"
                         >
                           🗑️ Xóa
                         </button>

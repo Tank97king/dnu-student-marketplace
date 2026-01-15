@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
+import PaymentModal from '../components/PaymentModal';
 
 export default function Orders() {
   const { user } = useSelector(state => state.auth);
@@ -10,6 +11,8 @@ export default function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(searchParams.get('type') || 'all'); // 'all', 'buying', 'selling'
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   useEffect(() => {
     // Redirect to seller dashboard if selling tab is selected
@@ -39,9 +42,40 @@ export default function Orders() {
       const response = await api.put(`/orders/${orderId}/status`, { status });
       setOrders(orders.map(o => o._id === orderId ? response.data.data : o));
       alert('Đã cập nhật trạng thái đơn hàng');
+      loadOrders();
     } catch (error) {
-      alert('Không thể cập nhật trạng thái');
+      alert(error.response?.data?.message || 'Không thể cập nhật trạng thái');
     }
+  };
+
+  const handleConfirmOrder = async (orderId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xác nhận đơn hàng này?')) return;
+    
+    try {
+      const response = await api.put(`/orders/${orderId}/confirm`);
+      setOrders(orders.map(o => o._id === orderId ? response.data.data : o));
+      alert('Đã xác nhận đơn hàng');
+      loadOrders();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Không thể xác nhận đơn hàng');
+    }
+  };
+
+  const getTimeRemaining = (expiresAt) => {
+    if (!expiresAt) return null;
+    const now = new Date();
+    const expiry = new Date(expiresAt);
+    const diff = expiry - now;
+    
+    if (diff <= 0) return 'Đã hết hạn';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `Còn ${hours} giờ ${minutes} phút`;
+    }
+    return `Còn ${minutes} phút`;
   };
 
   const formatPrice = (price) => {
@@ -157,12 +191,31 @@ export default function Orders() {
                           </p>
                         </div>
                       </div>
-                      <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
-                        <span>
-                          {isBuyer ? 'Người bán:' : 'Người mua:'} {otherUser?.name || 'N/A'}
-                        </span>
-                        <span>•</span>
-                        <span>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</span>
+                      <div className="mt-3 space-y-1">
+                        <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+                          <span>
+                            {isBuyer ? 'Người bán:' : 'Người mua:'} {otherUser?.name || 'N/A'}
+                          </span>
+                          <span>•</span>
+                          <span>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</span>
+                        </div>
+                        {order.status === 'pending' && order.expiresAt && (
+                          <div className="text-sm">
+                            <span className="text-orange-600 dark:text-orange-400 font-medium">
+                              ⏰ {getTimeRemaining(order.expiresAt)}
+                            </span>
+                            {getTimeRemaining(order.expiresAt) === 'Đã hết hạn' && (
+                              <span className="ml-2 text-red-600 dark:text-red-400">(Sẽ tự động hủy)</span>
+                            )}
+                          </div>
+                        )}
+                        {order.shippingAddress && (
+                          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            📍 {order.deliveryMethod === 'meetup' ? 'Gặp mặt trực tiếp' : 
+                                 order.deliveryMethod === 'pickup' ? 'Tự đến lấy' : 
+                                 'Giao hàng'} - {order.shippingAddress.address || order.shippingAddress.fullName}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(order.status)}`}>
@@ -174,13 +227,47 @@ export default function Orders() {
                   {order.status === 'pending' && (
                     <div className="flex space-x-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                       {isBuyer ? (
-                        <button
-                          onClick={() => handleUpdateStatus(order._id, 'cancelled')}
-                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-                        >
-                          Hủy đơn hàng
-                        </button>
-                      ) : null}
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setShowPaymentModal(true);
+                            }}
+                            className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                          >
+                            💳 Thanh toán
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) {
+                                handleUpdateStatus(order._id, 'cancelled');
+                              }
+                            }}
+                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                          >
+                            Hủy đơn hàng
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleConfirmOrder(order._id)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                          >
+                            ✓ Xác nhận đơn hàng
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) {
+                                handleUpdateStatus(order._id, 'cancelled');
+                              }
+                            }}
+                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                          >
+                            Hủy đơn hàng
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
 
@@ -211,6 +298,22 @@ export default function Orders() {
               );
             })}
           </div>
+        )}
+
+        {/* Payment Modal */}
+        {showPaymentModal && selectedOrder && (
+          <PaymentModal
+            order={selectedOrder}
+            isOpen={showPaymentModal}
+            onClose={() => {
+              setShowPaymentModal(false);
+              setSelectedOrder(null);
+              loadOrders();
+            }}
+            onSuccess={() => {
+              loadOrders();
+            }}
+          />
         )}
       </div>
     </div>

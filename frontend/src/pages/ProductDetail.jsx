@@ -6,7 +6,9 @@ import { addToFavorites, removeFromFavorites, fetchFavorites } from '../store/sl
 import api from '../utils/api'
 import ReviewSection from '../components/ReviewSection'
 import OfferModal from '../components/OfferModal'
+import BuyNowModal from '../components/BuyNowModal'
 import ShareProduct from '../components/ShareProduct'
+import ProductRecommendations from '../components/ProductRecommendations'
 import { addToCompare } from '../pages/CompareProducts'
 
 export default function ProductDetail() {
@@ -22,6 +24,7 @@ export default function ProductDetail() {
   const [mainImageIndex, setMainImageIndex] = useState(0)
   const [imageZoom, setImageZoom] = useState(1)
   const [showOfferModal, setShowOfferModal] = useState(false)
+  const [showBuyNowModal, setShowBuyNowModal] = useState(false)
 
   useEffect(() => {
     dispatch(fetchProduct(id))
@@ -190,7 +193,7 @@ export default function ProductDetail() {
   return (
     <div className="py-6">
       {loading ? (
-        <div className="text-center">Đang tải...</div>
+        <div className="text-center text-gray-900 dark:text-white">Đang tải...</div>
       ) : product ? (
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
@@ -269,12 +272,12 @@ export default function ProductDetail() {
 
             {/* Product Info */}
             <div>
-              <h1 className="product-title text-3xl font-bold mb-4">{product.title}</h1>
-              <p className="product-price text-4xl font-bold text-primary-600 mb-4">
+              <h1 className="product-title text-3xl font-bold mb-4 text-gray-900 dark:text-white">{product.title}</h1>
+              <p className="product-price text-4xl font-bold text-primary-600 dark:text-primary-400 mb-4">
                 {formatPrice(product.price)} VNĐ
               </p>
 
-              <div className="space-y-3 mb-6">
+              <div className="space-y-3 mb-6 text-gray-700 dark:text-gray-300">
                 <p><span className="font-semibold">Danh mục:</span> {product.category}</p>
                 <p><span className="font-semibold">Tình trạng:</span> {product.condition}</p>
                 <p><span className="font-semibold">Khu vực:</span> {
@@ -286,7 +289,7 @@ export default function ProductDetail() {
                 }</p>
               </div>
 
-              <h3 className="font-semibold text-lg mb-2">Người bán</h3>
+              <h3 className="font-semibold text-lg mb-2 text-gray-900 dark:text-white">Người bán</h3>
               <div className="flex items-center mb-6">
                 <img
                   src={product.userId?.avatar || 'https://via.placeholder.com/50'}
@@ -294,11 +297,11 @@ export default function ProductDetail() {
                   className="w-12 h-12 rounded-full mr-3"
                 />
                 <div>
-                  <Link to={`/user/${product.userId?._id}`} className="font-semibold hover:text-orange-600">
+                  <Link to={`/user/${product.userId?._id}`} className="font-semibold text-gray-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400">
                     {product.userId?.name}
                   </Link>
                   {product.userId?.studentId && (
-                    <p className="text-sm text-gray-500">MSSV: {product.userId.studentId}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">MSSV: {product.userId.studentId}</p>
                   )}
                 </div>
               </div>
@@ -308,12 +311,20 @@ export default function ProductDetail() {
                 {user?.id !== product.userId?._id ? (
                   <>
                     {product.status === 'Available' && (
-                      <button
-                        onClick={() => setShowOfferModal(true)}
-                        className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 min-w-[150px]"
-                      >
-                        💰 Đề nghị giá
-                      </button>
+                      <>
+                        <button
+                          onClick={() => setShowBuyNowModal(true)}
+                          className="flex-1 bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 min-w-[150px] font-semibold"
+                        >
+                          🛒 Mua ngay
+                        </button>
+                        <button
+                          onClick={() => setShowOfferModal(true)}
+                          className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 min-w-[150px]"
+                        >
+                          💰 Đề nghị giá
+                        </button>
+                      </>
                     )}
                     <button
                       onClick={handleChat}
@@ -325,8 +336,8 @@ export default function ProductDetail() {
                       onClick={handleToggleFavorite}
                       className={`px-6 py-3 border rounded-lg transition-colors ${
                         isFavorite 
-                          ? 'border-red-500 bg-red-50 text-red-600 hover:bg-red-100' 
-                          : 'border-gray-300 hover:bg-gray-50'
+                          ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30' 
+                          : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                     >
                       {isFavorite ? '❤️ Đã lưu' : '🤍 Yêu thích'}
@@ -338,7 +349,7 @@ export default function ProductDetail() {
                           navigate('/compare');
                         }
                       }}
-                      className="px-6 py-3 border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                      className="px-6 py-3 border border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
                     >
                       ⚖️ So sánh
                     </button>
@@ -364,13 +375,13 @@ export default function ProductDetail() {
                           }
                         }
                       }}
-                      className="px-6 py-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                      className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
                       Đánh dấu đã bán
                     </button>
                     <Link
                       to="/seller-dashboard"
-                      className="px-6 py-3 border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                      className="px-6 py-3 border border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
                     >
                       📊 Dashboard
                     </Link>
@@ -378,7 +389,7 @@ export default function ProductDetail() {
                 )}
               </div>
 
-              <button className="w-full mt-4 px-6 py-3 border border-red-500 text-red-500 rounded-lg hover:bg-red-50">
+              <button className="w-full mt-4 px-6 py-3 border border-red-500 dark:border-red-400 text-red-500 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
                 Báo cáo
               </button>
             </div>
@@ -386,17 +397,17 @@ export default function ProductDetail() {
 
           {/* Description */}
           <div className="mt-8">
-            <h2 className="text-2xl font-bold mb-4">Mô tả sản phẩm</h2>
-            <p className="text-gray-700">{product.description}</p>
+            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Mô tả sản phẩm</h2>
+            <p className="text-gray-700 dark:text-gray-300">{product.description}</p>
           </div>
 
           {/* Tags */}
           {product.tags?.length > 0 && (
             <div className="mt-6">
-              <h3 className="font-semibold mb-2">Tags</h3>
+              <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Tags</h3>
               <div className="flex flex-wrap gap-2">
                 {product.tags.map((tag, i) => (
-                  <span key={i} className="px-3 py-1 bg-gray-200 rounded-full text-sm">
+                  <span key={i} className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-full text-sm">
                     {tag}
                   </span>
                 ))}
@@ -414,9 +425,15 @@ export default function ProductDetail() {
               }}
             />
           </div>
+
+          {/* Product Recommendations */}
+          <div className="mt-8 max-w-7xl mx-auto px-4">
+            <ProductRecommendations type="similar" productId={id} />
+            <ProductRecommendations type="also-viewed" productId={id} />
+          </div>
         </div>
       ) : (
-        <div className="text-center">Không tìm thấy sản phẩm</div>
+        <div className="text-center text-gray-900 dark:text-white">Không tìm thấy sản phẩm</div>
       )}
 
       {/* Offer Modal */}
@@ -427,6 +444,19 @@ export default function ProductDetail() {
           onClose={() => setShowOfferModal(false)}
           onOfferCreated={(offer) => {
             console.log('Offer created:', offer);
+            navigate('/orders');
+          }}
+        />
+      )}
+
+      {/* Buy Now Modal */}
+      {product && (
+        <BuyNowModal
+          product={product}
+          isOpen={showBuyNowModal}
+          onClose={() => setShowBuyNowModal(false)}
+          onOrderCreated={(order) => {
+            console.log('Order created:', order);
             navigate('/orders');
           }}
         />

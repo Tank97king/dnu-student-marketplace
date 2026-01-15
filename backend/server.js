@@ -24,6 +24,15 @@ const offerRoutes = require('./routes/offer');
 const orderRoutes = require('./routes/order');
 const productViewRoutes = require('./routes/productView');
 const bookmarkRoutes = require('./routes/bookmark');
+const bankQRRoutes = require('./routes/bankQR');
+const paymentRoutes = require('./routes/payment');
+const searchRoutes = require('./routes/search');
+const productRecommendationRoutes = require('./routes/productRecommendation');
+const postRoutes = require('./routes/post');
+const storyRoutes = require('./routes/story');
+const collectionRoutes = require('./routes/collection');
+const hashtagRoutes = require('./routes/hashtag');
+const chatbotRoutes = require('./routes/chatbot');
 
 const app = express();
 const server = http.createServer(app);
@@ -103,6 +112,44 @@ io.on('connection', (socket) => {
 // Make io accessible to routes
 app.set('io', io);
 
+// Initialize cron jobs for order/offer expiration
+try {
+  const cron = require('node-cron');
+  const { setIO, runExpirationChecks } = require('./cron/orderExpiration');
+  const { setIO: setSmartIO, runSmartNotifications } = require('./cron/smartNotifications');
+
+  // Set io instance for cron notifications
+  setIO(io);
+  setSmartIO(io);
+
+  // Run expiration checks every hour
+  cron.schedule('0 * * * *', async () => {
+    console.log('[Cron] Running expiration checks...');
+    await runExpirationChecks();
+  });
+
+  // Run smart notifications every 6 hours
+  cron.schedule('0 */6 * * *', async () => {
+    console.log('[Cron] Running smart notifications...');
+    await runSmartNotifications();
+  });
+
+  // Also run on server start
+  setTimeout(async () => {
+    console.log('[Cron] Running initial expiration check...');
+    await runExpirationChecks();
+    
+    console.log('[Cron] Running initial smart notifications check...');
+    await runSmartNotifications();
+  }, 10000); // Wait 10 seconds after server start
+  
+  console.log('[Cron] Cron jobs initialized successfully');
+} catch (error) {
+  console.warn('[Cron] node-cron not installed. Cron jobs disabled.');
+  console.warn('[Cron] To enable: Run "npm install node-cron" in backend directory');
+  // Cron jobs will be disabled, but server will still run
+}
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -116,7 +163,16 @@ app.use('/api/offers', offerRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/products', productViewRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
+app.use('/api', productRecommendationRoutes); // Must be before /api/products to avoid route conflict
 app.use('/api/products', productRoutes);
+app.use('/api/bankqr', bankQRRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/stories', storyRoutes);
+app.use('/api/collections', collectionRoutes);
+app.use('/api/hashtags', hashtagRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

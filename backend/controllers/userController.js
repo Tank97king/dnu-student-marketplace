@@ -409,6 +409,8 @@ exports.getSellerStats = async (req, res) => {
   try {
     const { userId } = req.params;
     const { timeRange = 'month' } = req.query; // 'week', 'month', 'year', 'all'
+    const Payment = require('../models/Payment');
+    const Review = require('../models/Review');
 
     // Calculate date range
     const now = new Date();
@@ -434,8 +436,9 @@ exports.getSellerStats = async (req, res) => {
     const products = await Product.find({ userId, ...dateFilter });
     const productIds = products.map(p => p._id);
 
-    // Calculate stats
+    // Calculate basic stats
     const totalProducts = await Product.countDocuments({ userId });
+    const availableProducts = await Product.countDocuments({ userId, status: 'Available' });
     const soldProducts = await Product.countDocuments({ userId, status: 'Sold', ...dateFilter });
 
     // Total views
@@ -465,24 +468,235 @@ exports.getSellerStats = async (req, res) => {
       ...dateFilter
     });
 
-    // Total revenue
+    // Get orders for revenue calculation
     const orders = await Order.find({
       sellerId: userId,
-      status: 'completed',
       ...dateFilter
+    }).populate('productId', 'title category');
+
+    // Total revenue from confirmed payments
+    const orderIds = orders.map(o => o._id);
+    const confirmedPayments = await Payment.find({
+      orderId: { $in: orderIds },
+      status: 'confirmed'
     });
-    const totalRevenue = orders.reduce((sum, order) => sum + order.finalPrice, 0);
+    const totalRevenue = confirmedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+
+    // Revenue by time period (daily for last 30 days, monthly for last 12 months)
+    const dailyRevenue = await Payment.aggregate([
+      {
+        $match: {
+          orderId: { $in: orderIds },
+          status: 'confirmed',
+          confirmedAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'orderId',
+          foreignField: '_id',
+          as: 'order'
+        }
+      },
+      { $unwind: '$order' },
+      {
+        $match: {
+          'order.sellerId': mongoose.Types.ObjectId(userId)
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$confirmedAt' }
+          },
+          revenue: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const monthlyRevenue = await Payment.aggregate([
+      {
+        $match: {
+          orderId: { $in: orderIds },
+          status: 'confirmed',
+          confirmedAt: { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'orderId',
+          foreignField: '_id',
+          as: 'order'
+        }
+      },
+      { $unwind: '$order' },
+      {
+        $match: {
+          'order.sellerId': mongoose.Types.ObjectId(userId)
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m', date: '$confirmedAt' }
+          },
+          revenue: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Top products by revenue (sold products)
+    const topProductsByRevenue = await Payment.aggregate([
+      {
+        $match: {
+          orderId: { $in: orderIds },
+          status: 'confirmed'
+        }
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'orderId',
+          foreignField: '_id',
+          as: 'order'
+        }
+      },
+      { $unwind: '$order' },
+      {
+        $match: {
+          'order.sellerId': mongoose.Types.ObjectId(userId)
+        }
+      },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'order.productId',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      { $unwind: '$product' },
+      {
+        $group: {
+          _id: '$product._id',
+          title: { $first: '$product.title' },
+          images: { $first: '$product.images' },
+          category: { $first: '$product.category' },
+          revenue: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 10 }
+    ]);
 
     // Top products by views
-    const topProducts = await Product.find({ userId })
+    const topProductsByViews = await Product.find({ userId })
       .sort({ viewCount: -1 })
       .limit(5)
-      .select('title images price viewCount favoriteCount');
+      .select('title images price viewCount favoriteCount category');
+
+    // Conversion rates
+    const conversionRates = {
+      viewToOffer: totalViews > 0 ? ((totalOffers / totalViews) * 100).toFixed(2) : 0,
+      offerToOrder: totalOffers > 0 ? ((totalOrders / totalOffers) * 100).toFixed(2) : 0,
+      orderToPayment: totalOrders > 0 ? ((confirmedPayments.length / totalOrders) * 100).toFixed(2) : 0,
+      overall: totalViews > 0 ? ((confirmedPayments.length / totalViews) * 100).toFixed(2) : 0
+    };
+
+    // Review stats
+    const reviewStats = await Review.aggregate([
+      {
+        $match: {
+          reviewedUserId: mongoose.Types.ObjectId(userId),
+          ...dateFilter
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: '$rating' },
+          totalReviews: { $sum: 1 },
+          ratingDistribution: {
+            $push: '$rating'
+          }
+        }
+      }
+    ]);
+
+    let reviewData = {
+      averageRating: 0,
+      totalReviews: 0,
+      ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    };
+
+    if (reviewStats.length > 0) {
+      const stats = reviewStats[0];
+      reviewData.averageRating = Math.round((stats.averageRating || 0) * 10) / 10;
+      reviewData.totalReviews = stats.totalReviews || 0;
+      
+      // Calculate rating distribution
+      if (stats.ratingDistribution) {
+        stats.ratingDistribution.forEach(rating => {
+          if (rating >= 1 && rating <= 5) {
+            reviewData.ratingDistribution[rating] = (reviewData.ratingDistribution[rating] || 0) + 1;
+          }
+        });
+      }
+    }
+
+    // Revenue by category
+    const revenueByCategory = await Payment.aggregate([
+      {
+        $match: {
+          orderId: { $in: orderIds },
+          status: 'confirmed'
+        }
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'orderId',
+          foreignField: '_id',
+          as: 'order'
+        }
+      },
+      { $unwind: '$order' },
+      {
+        $match: {
+          'order.sellerId': mongoose.Types.ObjectId(userId)
+        }
+      },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'order.productId',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      { $unwind: '$product' },
+      {
+        $group: {
+          _id: '$product.category',
+          revenue: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { revenue: -1 } }
+    ]);
 
     res.json({
       success: true,
       data: {
         totalProducts,
+        availableProducts,
         soldProducts,
         totalViews,
         totalFavorites,
@@ -490,7 +704,13 @@ exports.getSellerStats = async (req, res) => {
         totalOffers,
         totalOrders,
         totalRevenue,
-        topProducts
+        topProductsByViews,
+        topProductsByRevenue,
+        conversionRates,
+        reviewStats: reviewData,
+        dailyRevenue,
+        monthlyRevenue,
+        revenueByCategory
       }
     });
   } catch (error) {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
+import { Link } from 'react-router-dom'
 import { updateUser } from '../store/slices/authSlice'
 import api from '../utils/api'
 
@@ -264,27 +265,73 @@ function AdminDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto py-6 px-4">
-      <h1 className="text-3xl font-bold mb-6">Bảng điều khiển Quản trị</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Bảng điều khiển Quản trị</h1>
+        <div className="flex space-x-2">
+          <Link
+            to="/admin/revenue"
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+          >
+            📊 Thống kê doanh thu
+          </Link>
+          <Link
+            to="/admin/payments"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            💳 Quản lý thanh toán
+          </Link>
+          {isSuperAdmin && (
+            <Link
+              to="/admin/bankqr"
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+            >
+              🏦 Quản lý QR Code
+            </Link>
+          )}
+        </div>
+      </div>
 
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <p className="text-gray-500">Tổng người dùng</p>
-            <p className="text-3xl font-bold">{stats.users.total}</p>
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+            <p className="text-gray-500 dark:text-gray-400">Tổng người dùng</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.users.total}</p>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <p className="text-gray-500">Sản phẩm đang bán</p>
-            <p className="text-3xl font-bold">{stats.products.available}</p>
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+            <p className="text-gray-500 dark:text-gray-400">Sản phẩm đang bán</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.products.available}</p>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <p className="text-gray-500">Đã bán</p>
-            <p className="text-3xl font-bold">{stats.products.sold}</p>
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+            <p className="text-gray-500 dark:text-gray-400">Đã bán</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.products.sold}</p>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <p className="text-gray-500">Chờ duyệt</p>
-            <p className="text-3xl font-bold">{stats.products.pending}</p>
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+            <p className="text-gray-500 dark:text-gray-400">Chờ duyệt</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.products.pending}</p>
           </div>
+          {stats.payments && (
+            <>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                <p className="text-gray-500 dark:text-gray-400">Tổng doanh thu</p>
+                <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                  {new Intl.NumberFormat('vi-VN').format(stats.payments.totalRevenue || 0)} ₫
+                </p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                <p className="text-gray-500 dark:text-gray-400">Thanh toán đã xác nhận</p>
+                <p className="text-3xl font-bold text-green-600 dark:text-green-400">{stats.payments.confirmed || 0}</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                <p className="text-gray-500 dark:text-gray-400">Chờ xác nhận</p>
+                <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{stats.payments.pending || 0}</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                <p className="text-gray-500 dark:text-gray-400">Tổng thanh toán</p>
+                <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">{stats.payments.total || 0}</p>
+              </div>
+            </>
+          )}
         </div>
       )}
 

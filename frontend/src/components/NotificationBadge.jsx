@@ -129,6 +129,20 @@ export default function NotificationBadge() {
         return '❤️';
       case 'user_followed':
         return '👤';
+      case 'favorite_price_drop':
+        return '❤️';
+      case 'review_reminder':
+        return '⭐';
+      case 'product_trending':
+        return '🔥';
+      case 'payment_pending_review':
+      case 'payment_confirmed':
+      case 'payment_rejected':
+      case 'payment_expired':
+        return '💳';
+      case 'order_expired':
+      case 'offer_expired':
+        return '⏰';
       default:
         return '🔔';
     }

@@ -20,7 +20,16 @@ const notificationSchema = new mongoose.Schema({
       'offer_countered',
       'product_interested',
       'product_favorited',
-      'user_followed'
+      'user_followed',
+      'favorite_price_drop',
+      'review_reminder',
+      'product_trending',
+      'payment_pending_review',
+      'payment_confirmed',
+      'payment_rejected',
+      'order_expired',
+      'offer_expired',
+      'payment_expired'
     ],
     required: true
   },

@@ -85,7 +85,7 @@ export default function ProfileDropdown() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-50 max-h-[90vh] overflow-y-auto">
+        <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-[100] max-h-[90vh] overflow-y-auto">
           {/* Yellow Header */}
           <div className="bg-yellow-400 h-4 rounded-t-lg"></div>
 
@@ -217,6 +217,17 @@ export default function ProfileDropdown() {
                 </svg>
                 <span className="text-gray-800 dark:text-gray-200">Đề nghị giá</span>
               </Link>
+              
+              <Link 
+                to="/payments" 
+                onClick={() => setIsOpen(false)}
+                className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span className="text-gray-800 dark:text-gray-200">Lịch sử thanh toán</span>
+              </Link>
             </div>
           </div>
 
@@ -336,6 +347,17 @@ export default function ProfileDropdown() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 <span className="text-gray-800 dark:text-gray-200">Cài đặt tài khoản</span>
+              </Link>
+              
+              <Link 
+                to="/notifications/settings" 
+                onClick={() => setIsOpen(false)}
+                className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <span className="text-gray-800 dark:text-gray-200">Cài đặt thông báo</span>
               </Link>
               
               <Link 

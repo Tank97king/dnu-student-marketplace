@@ -29,7 +29,12 @@ const productSchema = new mongoose.Schema({
   condition: {
     type: String,
     required: [true, 'Vui lòng chọn tình trạng'],
-    enum: ['New', 'Like New', 'Good', 'Fair']
+    enum: [
+      // Giá trị mới (tiếng Việt)
+      'Rất tốt', 'Tốt', 'Khá', 'Đã dùng nhiều', 'Cần sửa chữa',
+      // Giá trị cũ (tiếng Anh) - để tương thích ngược
+      'New', 'Like New', 'Excellent', 'Good', 'Fair', 'Used', 'NeedsRepair'
+    ]
   },
   images: [{
     type: String
@@ -94,7 +99,20 @@ const productSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
     }
-  }]
+  }],
+  postId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post',
+    default: null
+  },
+  likeCount: {
+    type: Number,
+    default: 0
+  },
+  shareCount: {
+    type: Number,
+    default: 0
+  }
 }, {
   timestamps: true
 });
