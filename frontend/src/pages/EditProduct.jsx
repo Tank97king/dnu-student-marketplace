@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchProduct, updateProduct, deleteProduct } from '../store/slices/productSlice'
+import api from '../utils/api'
 
 export default function EditProduct() {
   const { id } = useParams()
@@ -11,7 +12,7 @@ export default function EditProduct() {
   const { user } = useSelector(state => state.auth)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -25,10 +26,12 @@ export default function EditProduct() {
   })
   const [imageError, setImageError] = useState('')
   const [newImages, setNewImages] = useState([])
+  const [aiLoadingMeta, setAiLoadingMeta] = useState(false)
+  const [aiLoadingDesc, setAiLoadingDesc] = useState(false)
 
   // Subcategories cho tất cả các danh mục
   const categorySubcategories = {
-    Electronics: [
+    'Điện tử': [
       { value: '', label: 'Chọn loại điện tử' },
       { value: 'điện thoại smartphone iphone android', label: 'Điện thoại' },
       { value: 'máy tính bảng tablet ipad', label: 'Máy tính bảng' },
@@ -40,7 +43,7 @@ export default function EditProduct() {
       { value: 'màn hình monitor phụ kiện điện tử', label: 'Phụ kiện (Màn hình,...)' },
       { value: 'ram cpu card linh kiện', label: 'Linh kiện (RAM,...)' }
     ],
-    Books: [
+    'Sách': [
       { value: '', label: 'Chọn loại sách' },
       { value: 'giáo trình đại học môn học ngành', label: 'Sách giáo trình đại học' },
       { value: 'tham khảo bài tập đề cương ôn thi', label: 'Sách tham khảo, bài tập, đề cương' },
@@ -49,7 +52,7 @@ export default function EditProduct() {
       { value: 'tiểu thuyết truyện light novel manga', label: 'Tiểu thuyết, truyện, light novel, manga' },
       { value: 'tạp chí học lập trình marketing', label: 'Tạp chí, sách học lập trình, marketing' }
     ],
-    Clothing: [
+    'Quần áo': [
       { value: '', label: 'Chọn loại quần áo' },
       { value: 'áo thun áo sơ mi áo khoác', label: 'Áo thun, áo sơ mi, áo khoác' },
       { value: 'quần jeans quần tây quần thể thao', label: 'Quần jeans, quần tây, quần thể thao' },
@@ -58,7 +61,7 @@ export default function EditProduct() {
       { value: 'giày dép balo túi xách', label: 'Giày, dép, balo, túi xách' },
       { value: 'phụ kiện mũ nón đồng hồ thắt lưng', label: 'Phụ kiện: mũ, nón, đồng hồ, thắt lưng' }
     ],
-    Stationery: [
+    'Văn phòng phẩm': [
       { value: '', label: 'Chọn loại văn phòng phẩm' },
       { value: 'bút bi bút chì bút highlight', label: 'Bút các loại (bút bi, bút chì, bút highlight)' },
       { value: 'tập vở sổ tay giấy note', label: 'Tập vở, sổ tay, giấy note' },
@@ -67,7 +70,7 @@ export default function EditProduct() {
       { value: 'bảng vẽ kẹp tài liệu khay để bút', label: 'Bảng vẽ, kẹp tài liệu, khay để bút' },
       { value: 'handmade sổ bullet journal sticker', label: 'Sản phẩm handmade học tập (sổ bullet journal, sticker...)' }
     ],
-    Sports: [
+    'Thể thao': [
       { value: '', label: 'Chọn loại thể thao' },
       { value: 'bóng đá giày bóng áo đấu', label: 'Bóng đá: giày, bóng, áo đấu' },
       { value: 'cầu lông vợt cầu túi thể thao', label: 'Cầu lông: vợt, cầu, túi thể thao' },
@@ -76,7 +79,7 @@ export default function EditProduct() {
       { value: 'đồ bơi kính bơi áo khoác thể thao', label: 'Đồ bơi, kính bơi, áo khoác thể thao' },
       { value: 'đồng hồ đếm bước dây nhảy thiết bị', label: 'Thiết bị nhỏ: đồng hồ đếm bước, dây nhảy' }
     ],
-    Furniture: [
+    'Nội thất': [
       { value: '', label: 'Chọn loại nội thất' },
       { value: 'giường nệm chăn ga gối', label: 'Giường, nệm, chăn ga gối' },
       { value: 'bàn học ghế học đèn bàn', label: 'Bàn học, ghế học, đèn bàn' },
@@ -109,10 +112,23 @@ export default function EditProduct() {
         return
       }
 
+      // Convert old English category values to Vietnamese
+      const categoryMap = {
+        'Books': 'Sách',
+        'Electronics': 'Điện tử',
+        'Furniture': 'Nội thất',
+        'Clothing': 'Quần áo',
+        'Stationery': 'Văn phòng phẩm',
+        'Sports': 'Thể thao',
+        'Other': 'Khác'
+      }
+
+      const vietnameseCategory = categoryMap[product.category] || product.category
+
       // Tìm subcategory từ tags nếu có
       let detectedSubcategory = ''
-      if (product.category && product.tags && product.tags.length > 0) {
-        const subcats = categorySubcategories[product.category] || []
+      if (vietnameseCategory && product.tags && product.tags.length > 0) {
+        const subcats = categorySubcategories[vietnameseCategory] || []
         const tagsString = product.tags.join(' ')
         for (const subcat of subcats) {
           if (subcat.value && tagsString.includes(subcat.value.split(' ')[0])) {
@@ -126,7 +142,7 @@ export default function EditProduct() {
         title: product.title || '',
         description: product.description || '',
         price: product.price || '',
-        category: product.category || '',
+        category: vietnameseCategory,
         subcategory: detectedSubcategory,
         condition: product.condition || '',
         location: product.location || '',
@@ -138,19 +154,19 @@ export default function EditProduct() {
 
   const handleChange = (e) => {
     const newFormData = { ...formData, [e.target.name]: e.target.value }
-    
+
     // Reset subcategory khi đổi category
     if (e.target.name === 'category') {
       newFormData.subcategory = ''
     }
-    
+
     setFormData(newFormData)
   }
 
   const handleImageChange = (e) => {
     setImageError('')
     const files = Array.from(e.target.files)
-    
+
     // Kiểm tra số lượng ảnh (tổng với ảnh hiện tại không quá 5)
     const currentImageCount = formData.images.length
     if (currentImageCount + files.length > 5) {
@@ -162,7 +178,7 @@ export default function EditProduct() {
     // Kiểm tra từng file
     const maxSize = 2 * 1024 * 1024 // 2MB
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-    
+
     const invalidFiles = files.filter(file => {
       if (file.size > maxSize) {
         return true
@@ -196,7 +212,7 @@ export default function EditProduct() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (imageError) {
       return
     }
@@ -220,7 +236,7 @@ export default function EditProduct() {
     }
 
     const result = await dispatch(updateProduct(submitData))
-    
+
     if (result.type.includes('fulfilled')) {
       setShowSuccessModal(true)
     }
@@ -233,7 +249,7 @@ export default function EditProduct() {
 
   const handleDelete = async () => {
     const result = await dispatch(deleteProduct(id))
-    
+
     if (result.type.includes('fulfilled')) {
       setShowDeleteModal(false)
       navigate('/products')
@@ -266,7 +282,29 @@ export default function EditProduct() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mô tả *</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mô tả *</label>
+            <button
+              type="button"
+              disabled={!formData.title.trim() || aiLoadingDesc}
+              onClick={async () => {
+                setAiLoadingDesc(true)
+                try {
+                  const res = await api.post('/products/ai-suggest-description', { title: formData.title, description: formData.description })
+                  if (res.data?.success && res.data?.data?.description) {
+                    setFormData(prev => ({ ...prev, description: res.data.data.description }))
+                  }
+                } catch (e) {
+                  alert(e.response?.data?.message || 'Không thể gợi ý mô tả')
+                } finally {
+                  setAiLoadingDesc(false)
+                }
+              }}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+            >
+              {aiLoadingDesc ? 'Đang xử lý...' : '✨ AI gợi ý mô tả'}
+            </button>
+          </div>
           <textarea
             name="description"
             required
@@ -291,7 +329,34 @@ export default function EditProduct() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Danh mục *</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Danh mục *</label>
+              <button
+                type="button"
+                disabled={!(formData.title.trim() || formData.description.trim()) || aiLoadingMeta}
+                onClick={async () => {
+                  setAiLoadingMeta(true)
+                  try {
+                    const res = await api.post('/products/ai-suggest-metadata', { title: formData.title, description: formData.description })
+                    if (res.data?.success && res.data?.data) {
+                      const { category, tags } = res.data.data
+                      setFormData(prev => ({
+                        ...prev,
+                        category: category || prev.category,
+                        tags: Array.isArray(tags) ? tags.join(', ') : (tags || prev.tags)
+                      }))
+                    }
+                  } catch (e) {
+                    alert(e.response?.data?.message || 'Không thể gợi ý')
+                  } finally {
+                    setAiLoadingMeta(false)
+                  }
+                }}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+              >
+                {aiLoadingMeta ? 'Đang xử lý...' : '✨ Gợi ý danh mục & tags'}
+              </button>
+            </div>
             <select
               name="category"
               required
@@ -300,13 +365,13 @@ export default function EditProduct() {
               onChange={handleChange}
             >
               <option value="">Chọn danh mục</option>
-              <option value="Books">Sách</option>
-              <option value="Electronics">Điện tử</option>
-              <option value="Furniture">Nội thất</option>
-              <option value="Clothing">Quần áo</option>
-              <option value="Stationery">Văn phòng phẩm</option>
-              <option value="Sports">Thể thao</option>
-              <option value="Other">Khác</option>
+              <option value="Sách">Sách</option>
+              <option value="Điện tử">Điện tử</option>
+              <option value="Nội thất">Nội thất</option>
+              <option value="Quần áo">Quần áo</option>
+              <option value="Văn phòng phẩm">Văn phòng phẩm</option>
+              <option value="Thể thao">Thể thao</option>
+              <option value="Khác">Khác</option>
             </select>
           </div>
         </div>
@@ -315,7 +380,7 @@ export default function EditProduct() {
         {hasSubcategories && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Loại {formData.category === 'Electronics' ? 'điện tử' : formData.category === 'Books' ? 'sách' : formData.category === 'Clothing' ? 'quần áo' : formData.category === 'Stationery' ? 'văn phòng phẩm' : formData.category === 'Sports' ? 'thể thao' : formData.category === 'Furniture' ? 'nội thất' : ''}
+              Loại {formData.category.toLowerCase()}
             </label>
             <select
               name="subcategory"
@@ -384,7 +449,7 @@ export default function EditProduct() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Hình ảnh (tối đa {5 - formData.images.length} ảnh, mỗi ảnh tối đa 2MB)
           </label>
-          
+
           {/* Current Images */}
           {formData.images.length > 0 && (
             <div className="grid grid-cols-5 gap-2 mb-4">
@@ -438,7 +503,7 @@ export default function EditProduct() {
               )}
             </>
           )}
-          
+
           <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             Định dạng: JPG, PNG, WebP | Kích thước: Tối đa 2MB/ảnh | Tổng số lượng: Tối đa 5 ảnh ({formData.images.length}/{5})
           </p>

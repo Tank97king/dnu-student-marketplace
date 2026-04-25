@@ -27,6 +27,19 @@ export const fetchPosts = createAsyncThunk(
   }
 )
 
+// Fetch personalized feed (following + self)
+export const fetchFollowingFeed = createAsyncThunk(
+  'post/fetchFollowingFeed',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/posts/feed', { params })
+      return response.data
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Lỗi khi tải feed theo dõi')
+    }
+  }
+)
+
 // Fetch single post
 export const fetchPost = createAsyncThunk(
   'post/fetchPost',
@@ -144,6 +157,20 @@ const postSlice = createSlice({
         }
       })
       .addCase(fetchPosts.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload
+      })
+      .addCase(fetchFollowingFeed.pending, (state) => {
+        state.loading = true
+      })
+      .addCase(fetchFollowingFeed.fulfilled, (state, action) => {
+        state.loading = false
+        state.posts = action.payload.data
+        if (action.payload.pagination) {
+          state.pagination = action.payload.pagination
+        }
+      })
+      .addCase(fetchFollowingFeed.rejected, (state, action) => {
         state.loading = false
         state.error = action.payload
       })

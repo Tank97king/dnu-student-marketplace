@@ -19,8 +19,11 @@ export default function ProductRecommendations({ type, productId, limit = 8 }) {
     try {
       setLoading(true);
       let endpoint = '';
-      
+
       switch (type) {
+        case 'ai-similar':
+          endpoint = `/products/${productId}/ai-similar`;
+          break;
         case 'similar':
           endpoint = `/products/${productId}/similar`;
           break;
@@ -33,12 +36,6 @@ export default function ProductRecommendations({ type, productId, limit = 8 }) {
             return;
           }
           endpoint = '/products/recommended';
-          break;
-        case 'trending':
-          endpoint = '/products/trending';
-          break;
-        case 'latest':
-          endpoint = '/products/latest';
           break;
         case 'nearby':
           if (!user) {
@@ -81,11 +78,10 @@ export default function ProductRecommendations({ type, productId, limit = 8 }) {
 
   const getTitle = () => {
     const titles = {
+      'ai-similar': 'Gợi ý bằng AI',
       similar: 'Sản phẩm tương tự',
       'also-viewed': 'Người dùng cũng xem',
       recommended: 'Sản phẩm bạn có thể thích',
-      trending: 'Sản phẩm đang hot 🔥',
-      latest: 'Sản phẩm mới nhất',
       nearby: 'Sản phẩm gần bạn'
     };
     return titles[type] || 'Gợi ý sản phẩm';
@@ -157,7 +153,7 @@ export default function ProductRecommendations({ type, productId, limit = 8 }) {
                   <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                     <span>
                       {product.location === 'Campus' ? '🏫' :
-                       product.location === 'Dormitory' ? '🏠' : '📍'}
+                        product.location === 'Dormitory' ? '🏠' : '📍'}
                     </span>
                     {product.averageRating > 0 && (
                       <span className="flex items-center">

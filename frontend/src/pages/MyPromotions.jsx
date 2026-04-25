@@ -1,55 +1,63 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
+import api from '../utils/api'
 
 export default function MyPromotions() {
   const { user } = useSelector(state => state.auth)
   const [activeTab, setActiveTab] = useState('active')
+  const [coupons, setCoupons] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // Mock data - có thể thay thế bằng API call thực tế
-  const promotions = {
-    active: [
-      {
-        id: 1,
-        title: 'Giảm 20% phí đăng tin',
-        description: 'Giảm giá phí đăng tin cho tất cả sản phẩm điện tử',
-        discount: '20%',
-        validUntil: '2025-12-31',
-        status: 'active',
-        icon: '🎁'
-      },
-      {
-        id: 2,
-        title: 'Miễn phí đăng tin đầu tiên',
-        description: 'Sử dụng ngay cho sản phẩm đầu tiên của bạn',
-        discount: '100%',
-        validUntil: '2025-11-30',
-        status: 'active',
-        icon: '🎉'
+  useEffect(() => {
+    fetchCoupons()
+  }, [activeTab])
+
+  const fetchCoupons = async () => {
+    try {
+      setLoading(true)
+      // Fetch all coupons including expired ones
+      const response = await api.get('/coupons/available?includeExpired=true')
+      const allCoupons = response.data.data || []
+      
+      // Organize coupons by status
+      const now = new Date()
+      const organized = {
+        active: [],
+        expired: [],
+        used: []
       }
-    ],
-    expired: [
-      {
-        id: 3,
-        title: 'Giảm 15% phí đăng tin',
-        description: 'Đã hết hạn',
-        discount: '15%',
-        validUntil: '2025-10-15',
-        status: 'expired',
-        icon: '🏷️'
-      }
-    ],
-    used: [
-      {
-        id: 4,
-        title: 'Giảm 10% phí đăng tin',
-        description: 'Đã sử dụng',
-        discount: '10%',
-        validUntil: '2025-09-30',
-        status: 'used',
-        icon: '✅'
-      }
-    ]
+
+      allCoupons.forEach(coupon => {
+        const expiryDate = new Date(coupon.expiryDate)
+        const isExpired = expiryDate <= now
+        const isUsedUp = coupon.usageLimit && coupon.usedCount >= coupon.usageLimit
+
+        if (isExpired) {
+          organized.expired.push({
+            ...coupon,
+            status: 'expired'
+          })
+        } else if (isUsedUp) {
+          organized.used.push({
+            ...coupon,
+            status: 'used'
+          })
+        } else {
+          organized.active.push({
+            ...coupon,
+            status: 'active'
+          })
+        }
+      })
+
+      setCoupons(organized)
+    } catch (error) {
+      console.error('Error fetching coupons:', error)
+      setCoupons({ active: [], expired: [], used: [] })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const formatDate = (dateString) => {
@@ -61,7 +69,24 @@ export default function MyPromotions() {
     })
   }
 
-  const currentPromotions = promotions[activeTab] || []
+  const getDiscountText = (coupon) => {
+    if (coupon.discountType === 'percentage') {
+      return `${coupon.discountValue}%`
+    } else {
+      return `${coupon.discountValue.toLocaleString('vi-VN')} ₫`
+    }
+  }
+
+  const getIcon = (coupon) => {
+    if (coupon.discountType === 'percentage' && coupon.discountValue >= 50) {
+      return '🎉'
+    } else if (coupon.discountType === 'fixed' && coupon.discountValue >= 100000) {
+      return '🎁'
+    }
+    return '🎟️'
+  }
+
+  const currentPromotions = coupons[activeTab] || []
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -85,7 +110,7 @@ export default function MyPromotions() {
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
-              Đang áp dụng ({promotions.active.length})
+              Đang áp dụng ({coupons.active?.length || 0})
             </button>
             <button
               onClick={() => setActiveTab('used')}
@@ -95,7 +120,7 @@ export default function MyPromotions() {
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
-              Đã sử dụng ({promotions.used.length})
+              Đã sử dụng ({coupons.used?.length || 0})
             </button>
             <button
               onClick={() => setActiveTab('expired')}
@@ -105,64 +130,87 @@ export default function MyPromotions() {
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
-              Đã hết hạn ({promotions.expired.length})
+              Đã hết hạn ({coupons.expired?.length || 0})
             </button>
           </div>
         </div>
 
         {/* Promotions List */}
-        {currentPromotions.length > 0 ? (
+        {loading ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center">
+            <div className="text-6xl mb-4 animate-pulse">🎟️</div>
+            <p className="text-gray-600 dark:text-gray-400">Đang tải mã giảm giá...</p>
+          </div>
+        ) : currentPromotions.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {currentPromotions.map((promotion) => (
+            {currentPromotions.map((coupon) => (
               <div
-                key={promotion.id}
+                key={coupon._id}
                 className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border-2 ${
-                  promotion.status === 'active'
+                  coupon.status === 'active'
                     ? 'border-green-500 dark:border-green-600'
-                    : promotion.status === 'used'
+                    : coupon.status === 'used'
                     ? 'border-gray-300 dark:border-gray-600'
                     : 'border-gray-200 dark:border-gray-700 opacity-60'
                 }`}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center">
-                    <div className="text-4xl mr-4">{promotion.icon}</div>
+                    <div className="text-4xl mr-4">{getIcon(coupon)}</div>
                     <div>
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
-                        {promotion.title}
+                        Mã: {coupon.code}
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {promotion.description}
+                        {coupon.description || 'Mã giảm giá đặc biệt'}
                       </p>
                     </div>
                   </div>
                   <div className={`text-2xl font-bold ${
-                    promotion.status === 'active'
+                    coupon.status === 'active'
                       ? 'text-green-600 dark:text-green-400'
                       : 'text-gray-400 dark:text-gray-500'
                   }`}>
-                    {promotion.discount}
+                    {getDiscountText(coupon)}
                   </div>
+                </div>
+
+                <div className="space-y-2 mb-4 text-sm text-gray-600 dark:text-gray-400">
+                  {coupon.minPurchase > 0 && (
+                    <div>
+                      <span className="font-medium">Đơn tối thiểu:</span> {coupon.minPurchase.toLocaleString('vi-VN')} ₫
+                    </div>
+                  )}
+                  {coupon.usageLimit && (
+                    <div>
+                      <span className="font-medium">Đã sử dụng:</span> {coupon.usedCount || 0}/{coupon.usageLimit}
+                    </div>
+                  )}
+                  {coupon.applicableCategories && coupon.applicableCategories.length > 0 && (
+                    <div>
+                      <span className="font-medium">Danh mục:</span> {coupon.applicableCategories.join(', ')}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Hết hạn:</span> {formatDate(promotion.validUntil)}
+                    <span className="font-medium">Hết hạn:</span> {formatDate(coupon.expiryDate)}
                   </div>
-                  {promotion.status === 'active' ? (
+                  {coupon.status === 'active' ? (
                     <Link
-                      to="/create-product"
+                      to="/products"
                       className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
                     >
                       Sử dụng ngay
                     </Link>
                   ) : (
                     <span className={`text-sm font-medium ${
-                      promotion.status === 'used'
+                      coupon.status === 'used'
                         ? 'text-green-600 dark:text-green-400'
                         : 'text-gray-400 dark:text-gray-500'
                     }`}>
-                      {promotion.status === 'used' ? 'Đã sử dụng' : 'Đã hết hạn'}
+                      {coupon.status === 'used' ? 'Đã hết lượt' : 'Đã hết hạn'}
                     </span>
                   )}
                 </div>
@@ -195,12 +243,13 @@ export default function MyPromotions() {
 
         {/* Info Section */}
         <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
-          <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-2">Thông tin về ưu đãi</h3>
+          <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-2">Thông tin về mã giảm giá</h3>
           <ul className="list-disc list-inside space-y-1 text-sm text-blue-800 dark:text-blue-200">
-            <li>Ưu đãi chỉ áp dụng khi đăng bán sản phẩm</li>
-            <li>Mỗi ưu đãi chỉ có thể sử dụng một lần</li>
-            <li>Ưu đãi có thời hạn sử dụng, vui lòng kiểm tra trước khi sử dụng</li>
-            <li>Ưu đãi không thể chuyển nhượng hoặc hoàn tiền</li>
+            <li>Mã giảm giá có thể được áp dụng khi thanh toán đơn hàng</li>
+            <li>Mỗi mã có thể có giới hạn số lần sử dụng, vui lòng kiểm tra trước khi sử dụng</li>
+            <li>Mã giảm giá có thời hạn sử dụng, vui lòng kiểm tra ngày hết hạn</li>
+            <li>Mã giảm giá không thể chuyển nhượng hoặc hoàn tiền</li>
+            <li>Một số mã có thể yêu cầu đơn hàng tối thiểu hoặc chỉ áp dụng cho một số danh mục</li>
           </ul>
         </div>
       </div>

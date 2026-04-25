@@ -29,7 +29,8 @@ const notificationSchema = new mongoose.Schema({
       'payment_rejected',
       'order_expired',
       'offer_expired',
-      'payment_expired'
+      'payment_expired',
+      'new_coupon'
     ],
     required: true
   },

@@ -24,7 +24,7 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     required: [true, 'Vui lòng chọn danh mục'],
-    enum: ['Books', 'Electronics', 'Furniture', 'Clothing', 'Stationery', 'Sports', 'Other']
+    enum: ['Sách', 'Điện tử', 'Quần áo', 'Nội thất', 'Văn phòng phẩm', 'Thể thao', 'Khác']
   },
   condition: {
     type: String,
@@ -112,6 +112,15 @@ const productSchema = new mongoose.Schema({
   shareCount: {
     type: Number,
     default: 0
+  },
+  moderationStatus: {
+    type: String,
+    enum: ['safe', 'review', 'reject'],
+    default: 'safe'
+  },
+  moderationReason: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true

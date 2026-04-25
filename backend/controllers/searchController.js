@@ -3,6 +3,9 @@ const SearchHistory = require('../models/SearchHistory');
 const Review = require('../models/Review');
 const ProductView = require('../models/ProductView');
 const User = require('../models/User');
+const { generateContent } = require('../utils/gemini');
+const { semanticSearch } = require('../utils/embeddingService');
+
 
 // @desc    Get search autocomplete suggestions
 // @route   GET /api/search/autocomplete
@@ -166,6 +169,124 @@ exports.deleteSearchHistory = async (req, res) => {
   }
 };
 
+// Parse đơn giản câu tìm kiếm khi không có Gemini: trích "dưới/trên X tr" và từ khóa
+// Hỗ trợ cả có dấu (trên, dưới, triệu) và không dấu (tren, duoi, trieu)
+function parseNaturalFallback(text) {
+  const t = String(text).toLowerCase().replace(/\s+/g, ' ');
+  const filters = {};
+  let search = t;
+  // dưới/duoi X tr/triệu → maxPrice
+  const matchDuoi = t.match(/(?:dưới|duoi)\s*(\d+)\s*(?:tr|triệu|trieu)/);
+  if (matchDuoi) {
+    filters.maxPrice = Number(matchDuoi[1]) * 1e6;
+    search = search.replace(/(?:dưới|duoi)\s*\d+\s*(?:tr|triệu|trieu)/gi, '').trim();
+  }
+  // trên/tren X tr/triệu → minPrice
+  const matchTren = t.match(/(?:trên|tren)\s*(\d+)\s*(?:tr|triệu|trieu)/);
+  if (matchTren) {
+    filters.minPrice = Number(matchTren[1]) * 1e6;
+    search = search.replace(/(?:trên|tren)\s*\d+\s*(?:tr|triệu|trieu)/gi, '').trim();
+  }
+  search = search.replace(/\s*,\s*|\s+/g, ' ').trim();
+  return { search: search || null, ...filters };
+}
+
+// @desc    Tìm kiếm bằng ngôn ngữ tự nhiên (Gemini parse → query)
+// @route   POST /api/search/natural
+// @access  Public
+exports.searchNatural = async (req, res) => {
+  try {
+    const { query: naturalQuery } = req.body;
+    if (!naturalQuery || !String(naturalQuery).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập câu tìm kiếm'
+      });
+    }
+    const prompt = `Bạn phân tích câu tìm kiếm sản phẩm (sàn đồ cũ sinh viên) và trả về JSON với các trường sau (chỉ trả JSON, không giải thích):
+- search: từ khóa tìm kiếm (rút ra từ câu), nếu không có thì ""
+- category: chỉ một trong các giá trị sau hoặc "": "Sách", "Điện tử", "Quần áo", "Nội thất", "Văn phòng phẩm", "Thể thao", "Khác"
+- minPrice: số VNĐ (ví dụ 100000) hoặc null
+- maxPrice: số VNĐ (ví dụ 5000000 cho "dưới 5 triệu") hoặc null
+- location: chỉ một trong "Campus", "Dormitory", "Nearby" hoặc ""
+
+Câu tìm kiếm: "${String(naturalQuery).trim()}"`;
+
+    const response = await generateContent(prompt);
+    if (!response) {
+      // Fallback: parse đơn giản "dưới 5tr", "trên 10tr" + từ khóa rồi tìm
+      const { search: fallbackSearch, minPrice, maxPrice } = parseNaturalFallback(naturalQuery);
+      const filters = {};
+      if (minPrice != null) filters.minPrice = minPrice;
+      if (maxPrice != null) filters.maxPrice = maxPrice;
+      const searchTerm = fallbackSearch || '';
+      const query = buildSearchQuery(searchTerm, filters);
+      const products = await Product.find(query)
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .populate('userId', 'name avatar')
+        .select('-__v');
+      const total = await Product.countDocuments(query);
+      return res.json({
+        success: true,
+        data: products,
+        pagination: { total, limit: 50 },
+        fallback: true,
+        message: 'Đang dùng tìm theo từ khóa và giá (trên/dưới X tr). Gõ ví dụ: "laptop tren 5tr" hoặc "sách duoi 100k".'
+      });
+    }
+    const validCategories = ['Sách', 'Điện tử', 'Quần áo', 'Nội thất', 'Văn phòng phẩm', 'Thể thao', 'Khác'];
+    const validLocations = ['Campus', 'Dormitory', 'Nearby'];
+    let filters = {};
+    try {
+      const jsonStr = response.replace(/```json?\s*|\s*```/g, '').trim();
+      const parsed = JSON.parse(jsonStr);
+      const searchTerm = parsed.search || '';
+      if (parsed.category && validCategories.includes(parsed.category)) filters.category = parsed.category;
+      if (parsed.location && validLocations.includes(parsed.location)) filters.location = parsed.location;
+      if (parsed.minPrice != null) filters.minPrice = Number(parsed.minPrice);
+      if (parsed.maxPrice != null) filters.maxPrice = Number(parsed.maxPrice);
+      const query = buildSearchQuery(searchTerm, filters);
+      const products = await Product.find(query)
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .populate('userId', 'name avatar')
+        .select('-__v');
+      const total = await Product.countDocuments(query);
+      return res.json({
+        success: true,
+        data: products,
+        pagination: { total, limit: 50 }
+      });
+    } catch (parseErr) {
+      console.error('Natural search parse error:', parseErr);
+      const { search: fallbackSearch, minPrice, maxPrice } = parseNaturalFallback(naturalQuery);
+      const filters = {};
+      if (minPrice != null) filters.minPrice = minPrice;
+      if (maxPrice != null) filters.maxPrice = maxPrice;
+      const query = buildSearchQuery(fallbackSearch || '', filters);
+      const products = await Product.find(query)
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .populate('userId', 'name avatar')
+        .select('-__v');
+      const total = await Product.countDocuments(query);
+      return res.json({
+        success: true,
+        data: products,
+        pagination: { total, limit: 50 },
+        fallback: true
+      });
+    }
+  } catch (error) {
+    console.error('Search natural error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // Helper function to build search query
 const buildSearchQuery = (searchTerm, filters = {}) => {
   const query = {
@@ -212,3 +333,69 @@ const buildSearchQuery = (searchTerm, filters = {}) => {
 
 module.exports.buildSearchQuery = buildSearchQuery;
 
+// @desc    Semantic Search — Gemini Embedding + Vectra file-based index
+// @route   POST /api/search/semantic
+// @access  Public
+exports.searchSemantic = async (req, res) => {
+  try {
+    const { query: queryText, filters = {} } = req.body;
+    if (!queryText || !String(queryText).trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập câu tìm kiếm' });
+    }
+
+    // 1. Tìm ngữ nghĩa qua embedding
+    const semanticResults = await semanticSearch(String(queryText).trim(), 30);
+
+    // Fallback về regex nếu embedding thất bại (chưa index, hết quota, ...)
+    if (!semanticResults || semanticResults.length === 0) {
+      const fallbackQuery = buildSearchQuery(String(queryText).trim(), filters);
+      const products = await Product.find(fallbackQuery)
+        .sort({ viewCount: -1, averageRating: -1, createdAt: -1 })
+        .limit(30)
+        .populate('userId', 'name avatar')
+        .select('-__v');
+      const total = await Product.countDocuments(fallbackQuery);
+      return res.json({
+        success: true,
+        data: products.map(p => ({ ...p.toObject(), aiScore: null })),
+        pagination: { total, limit: 30 },
+        aiEnabled: false,
+        message: 'Dùng tìm kiếm thường (chưa có dữ liệu AI hoặc hết quota Gemini).'
+      });
+    }
+
+    // 2. Lấy id + score
+    const productIds = semanticResults.map(r => r.productId);
+    const scoreMap = {};
+    semanticResults.forEach(r => { scoreMap[r.productId] = r.score; });
+
+    // 3. Fetch từ MongoDB — chỉ Available + isApproved
+    const mongoQuery = { _id: { $in: productIds }, isApproved: true, status: 'Available' };
+    if (filters.category) mongoQuery.category = filters.category;
+    if (filters.location) mongoQuery.location = filters.location;
+    if (filters.minPrice || filters.maxPrice) {
+      mongoQuery.price = {};
+      if (filters.minPrice) mongoQuery.price.$gte = Number(filters.minPrice);
+      if (filters.maxPrice) mongoQuery.price.$lte = Number(filters.maxPrice);
+    }
+
+    const products = await Product.find(mongoQuery)
+      .populate('userId', 'name avatar')
+      .select('-__v');
+
+    // 4. Sắp xếp theo aiScore (cosine similarity ×100 = %)
+    const sorted = products
+      .map(p => ({ ...p.toObject(), aiScore: Math.round((scoreMap[p._id.toString()] || 0) * 100) }))
+      .sort((a, b) => b.aiScore - a.aiScore);
+
+    return res.json({
+      success: true,
+      data: sorted,
+      pagination: { total: sorted.length, limit: 30 },
+      aiEnabled: true
+    });
+  } catch (error) {
+    console.error('searchSemantic error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

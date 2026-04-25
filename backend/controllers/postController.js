@@ -213,6 +213,61 @@ exports.getPosts = async (req, res) => {
   }
 };
 
+// @desc    Get personalized feed (followed users + self)
+// @route   GET /api/posts/feed
+// @access  Private
+exports.getFollowingFeed = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      category,
+      sort = '-createdAt'
+    } = req.query;
+
+    const currentUser = await User.findById(req.user.id).select('following');
+    const followingIds = currentUser?.following || [];
+
+    const query = {
+      isApproved: true,
+      status: 'available',
+      userId: { $in: [req.user.id, ...followingIds] }
+    };
+
+    if (category) {
+      query.category = category;
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const posts = await Post.find(query)
+      .populate('userId', 'name avatar nickname')
+      .populate('productId')
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Post.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: posts,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get following feed error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy feed theo dõi: ' + error.message
+    });
+  }
+};
+
 // @desc    Get single post
 // @route   GET /api/posts/:id
 // @access  Public

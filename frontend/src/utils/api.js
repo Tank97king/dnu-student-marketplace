@@ -22,6 +22,11 @@ api.interceptors.request.use(
       delete config.headers['Content-Type']
     }
     
+    // Debug: log params cho products endpoint
+    if (config.url === '/products' && config.params?.category) {
+      console.log('API Request - Category:', config.params.category, 'Full params:', config.params)
+    }
+    
     return config
   },
   (error) => {

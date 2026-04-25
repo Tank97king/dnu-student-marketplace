@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { likePost, sharePost } from '../store/slices/postSlice'
 import { HeartIcon, ChatBubbleLeftIcon, ShareIcon, BookmarkIcon } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid'
-import api from '../utils/api'
+import SaveToCollectionModal from './SaveToCollectionModal'
 
 export default function PostCard({ post }) {
   const dispatch = useDispatch()
@@ -15,6 +15,7 @@ export default function PostCard({ post }) {
   const [likeCount, setLikeCount] = useState(post.likeCount || 0)
   const [showFullCaption, setShowFullCaption] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [showSaveModal, setShowSaveModal] = useState(false)
 
   const formatPrice = (price) => {
     if (!price) return ''
@@ -89,8 +90,11 @@ export default function PostCard({ post }) {
   }
 
   const handleSave = async () => {
-    // TODO: Implement save to collection
-    alert('Tính năng đang phát triển')
+    if (!user) {
+      alert('Vui lòng đăng nhập để lưu bài đăng')
+      return
+    }
+    setShowSaveModal(true)
   }
 
   const caption = post.caption || ''
@@ -100,7 +104,8 @@ export default function PostCard({ post }) {
     : caption
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-4">
+    <>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-4">
       {/* Header */}
       <div className="p-4 flex items-center justify-between">
         <Link to={`/users/${post.userId._id}/profile`} className="flex items-center space-x-3">
@@ -328,7 +333,15 @@ export default function PostCard({ post }) {
           </Link>
         )}
       </div>
-    </div>
+      </div>
+
+      {showSaveModal && (
+        <SaveToCollectionModal
+          postId={post._id}
+          onClose={() => setShowSaveModal(false)}
+        />
+      )}
+    </>
   )
 }
 

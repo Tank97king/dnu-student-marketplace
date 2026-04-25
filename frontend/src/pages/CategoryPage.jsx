@@ -130,15 +130,17 @@ export default function CategoryPage() {
   const categoryDisplayName = categoryNames[categoryValue] || categoryValue
 
   const handleSubcategoryClick = (subcategory) => {
-    // Khi click vào subcategory, điều hướng đến trang products với filter
+    // Dùng category tiếng Việt (Điện tử) để backend filter đúng
     const params = new URLSearchParams()
-    params.append('category', categoryValue)
+    params.append('category', categoryDisplayName)
     params.append('search', subcategory.searchTerm)
     navigate(`/products?${params.toString()}`)
   }
 
   const handleViewAll = () => {
-    navigate(`/products?category=${categoryValue}`)
+    // Dùng tên tiếng Việt để filter đúng với backend (Sách, Điện tử, ...)
+    const categoryForFilter = categoryDisplayName
+    navigate(`/products?category=${encodeURIComponent(categoryForFilter)}`)
   }
 
   return (

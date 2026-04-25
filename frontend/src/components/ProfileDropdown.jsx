@@ -66,14 +66,14 @@ export default function ProfileDropdown() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2"
+        className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
       >
         <img 
           src={user?.avatar || 'https://via.placeholder.com/40'} 
           alt="Avatar" 
-          className="w-10 h-10 rounded-full"
+          className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
         />
-        <span className="text-gray-700 dark:text-gray-200">{user?.name}</span>
+        <span className="text-gray-700 dark:text-gray-200 text-sm font-medium">{user?.name}</span>
         <svg 
           className={`w-4 h-4 text-gray-700 dark:text-gray-200 transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none" 

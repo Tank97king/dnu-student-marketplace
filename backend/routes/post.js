@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   createPost,
   getPosts,
+  getFollowingFeed,
   getPost,
   updatePost,
   deletePost,
@@ -18,6 +19,7 @@ const { upload } = require('../utils/uploadImage');
 // All routes require authentication except getPosts and getPost
 router.post('/', protect, upload.array('images', 10), createPost);
 router.get('/', getPosts);
+router.get('/feed', protect, getFollowingFeed);
 router.get('/user/:userId', getUserPosts);
 router.get('/hashtag/:hashtag', getPostsByHashtag);
 router.get('/:id', getPost);

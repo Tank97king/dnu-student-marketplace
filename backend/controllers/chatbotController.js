@@ -1,299 +1,274 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const dotenv = require('dotenv');
-const path = require('path');
+/**
+ * chatbotController.js — RAG-powered chatbot
+ *
+ * Kiến trúc RAG:
+ *   User message → Embed → Parallel search:
+ *     ├── semanticSearch(products)   → top-5 sản phẩm liên quan
+ *     └── knowledgeSearch(knowledge) → top-3 chunks FAQ/guide/policy
+ *   → buildRAGContext() → buildSystemPrompt() → Gemini → Response
+ */
 
-// Đảm bảo đọc .env từ thư mục backend
-dotenv.config({ path: path.join(__dirname, '../.env') });
+const Product = require('../models/Product');
+const { generateContent } = require('../utils/gemini');
+const { semanticSearch } = require('../utils/embeddingService');
+const {
+  knowledgeSearch,
+  buildRAGContext,
+  buildSystemPrompt,
+} = require('../utils/ragService');
 
-// Khởi tạo Gemini AI
-let genAI;
-let model;
-
-// Hàm khởi tạo Gemini AI (có thể gọi lại nếu cần)
-const initializeGemini = () => {
-  try {
-    // Đảm bảo đọc lại .env mỗi lần gọi (để xử lý trường hợp thêm API key sau khi server đã chạy)
-    dotenv.config({ path: path.join(__dirname, '../.env') });
-    
-    const apiKey = process.env.GEMINI_API_KEY;
-    
-    if (!apiKey) {
-      console.warn('⚠️ GEMINI_API_KEY not found in .env file');
-      console.warn('   Current working directory:', process.cwd());
-      console.warn('   Looking for .env at:', path.join(__dirname, '../.env'));
-      return false;
-    }
-
-    if (!apiKey.trim()) {
-      console.warn('⚠️ GEMINI_API_KEY is empty');
-      return false;
-    }
-
-    genAI = new GoogleGenerativeAI(apiKey.trim());
-    // Sử dụng model gemini-2.5-flash (model mới nhất, nhanh và mạnh)
-    model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    console.log('✅ Gemini AI initialized successfully with model: gemini-2.5-flash');
-    console.log('⚠️  Nếu gặp lỗi 404, vui lòng kích hoạt Generative Language API tại:');
-    console.log('   https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com');
-    return true;
-  } catch (error) {
-    console.error('❌ Error initializing Gemini AI:', error);
-    return false;
-  }
-};
-
-// Khởi tạo lần đầu khi load module
-initializeGemini();
-
-// Lưu trữ lịch sử chat theo session (có thể nâng cấp lên database sau)
+// ─── In-memory session store (RAM) ────────────────────────────────────────
+// Key: sessionId → Array<{role, content}>
 const chatHistory = new Map();
+const MAX_HISTORY = 10; // Giữ tối đa 10 lượt hội thoại (20 messages)
 
-// Hàm xử lý chat
+// ─── Helper: Fetch product docs từ MongoDB theo ids ─────────────────────
+async function fetchProductsByIds(semanticHits) {
+  if (!semanticHits || semanticHits.length === 0) return [];
+  try {
+    const ids = semanticHits.map(h => h.productId);
+    const scoreMap = {};
+    semanticHits.forEach(h => { scoreMap[h.productId] = h.score; });
+
+    const products = await Product.find({
+      _id: { $in: ids },
+      isApproved: true,
+      status: 'Available',
+    })
+      .limit(5)
+      .select('title price category location images description')
+      .lean();
+
+    // Sắp xếp theo cosine score
+    return products.sort((a, b) =>
+      (scoreMap[b._id.toString()] || 0) - (scoreMap[a._id.toString()] || 0)
+    );
+  } catch (err) {
+    console.error('[chatbot] fetchProductsByIds error:', err.message);
+    return [];
+  }
+}
+
+// ─── Helper: Detect xem câu hỏi có liên quan đến sản phẩm không ────────
+function isProductQuery(message) {
+  const keywords = [
+    'tìm', 'có', 'mua', 'sách', 'laptop', 'điện thoại', 'giá', 'sản phẩm',
+    'đồ', 'xem', 'bán', 'giáo trình', 'áo', 'bàn', 'ghế', 'điện tử', 'máy',
+    'tivi', 'quần', 'nội thất', 'thể thao', 'rẻ', 'cũ', 'dùng', 'cần', 'muốn',
+    'cho mình', 'gợi ý', 'recommend', 'thiết bị', 'dụng cụ', 'tai nghe',
+  ];
+  const msg = message.toLowerCase();
+  return keywords.some(kw => msg.includes(kw)) && message.length >= 2;
+}
+
+// ─── Main handler: chatWithGemini ─────────────────────────────────────────
 const chatWithGemini = async (req, res) => {
   try {
-    // Kiểm tra và khởi tạo lại nếu cần (để xử lý trường hợp thêm API key sau khi server đã chạy)
-    if (!genAI || !model) {
-      console.log('🔄 Attempting to reinitialize Gemini AI...');
-      const initialized = initializeGemini();
-      
-      if (!initialized || !genAI || !model) {
-        console.error('❌ Failed to initialize Gemini AI. API Key:', process.env.GEMINI_API_KEY ? 'Present but invalid' : 'Missing');
-        return res.status(500).json({
-          success: false,
-          message: 'Chatbot chưa được cấu hình. Vui lòng kiểm tra GEMINI_API_KEY trong file .env và khởi động lại server.'
-        });
-      }
-    }
-
     const { message, sessionId } = req.body;
 
-    // Validate input
     if (!message || !message.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng nhập tin nhắn'
+        message: 'Vui lòng nhập tin nhắn',
       });
     }
 
     const userMessage = message.trim();
     const currentSessionId = sessionId || 'default';
 
-    // Lấy lịch sử chat của session (nếu có)
+    // ── RAG Step 1: Parallel Retrieval ──────────────────────────────────
+    // Chạy song song để giảm latency
+    const retrievalTasks = [
+      // Knowledge base search (luôn chạy)
+      knowledgeSearch(userMessage, 3).catch(err => {
+        console.warn('[chatbot] knowledgeSearch failed:', err.message);
+        return [];
+      }),
+      // Product search (chỉ khi câu hỏi liên quan đến sản phẩm)
+      isProductQuery(userMessage)
+        ? semanticSearch(userMessage, 8).catch(err => {
+          console.warn('[chatbot] semanticSearch failed:', err.message);
+          return [];
+        })
+        : Promise.resolve([]),
+    ];
+
+    const [knowledgeHits, productHits] = await Promise.all(retrievalTasks);
+
+    // ── RAG Step 2: Fetch product details từ MongoDB ─────────────────────
+    const productDocs = await fetchProductsByIds(productHits);
+
+    // Chuẩn bị productsFound để trả về frontend (hiển thị card sản phẩm)
+    const productsFound = productDocs.map(p => ({
+      _id: p._id,
+      title: p.title,
+      price: p.price,
+      category: p.category,
+      images: p.images || [],
+    }));
+
+    // ── RAG Step 3: Build Augmented Context ──────────────────────────────
+    const ragContext = buildRAGContext(productHits, knowledgeHits, productDocs);
+    const systemPrompt = buildSystemPrompt(ragContext);
+
+    // ── RAG Step 4: Build conversation history for Gemini ────────────────
     let history = chatHistory.get(currentSessionId) || [];
 
-    // Tạo prompt với context về ứng dụng
-    const systemPrompt = `Bạn là một chatbot hỗ trợ thân thiện cho ứng dụng mua bán đồ dùng cũ của sinh viên Đại học Đại Nam.
-    
-Nhiệm vụ của bạn:
-- Hỗ trợ người dùng tìm hiểu về cách sử dụng ứng dụng
-- Hướng dẫn cách đăng bán sản phẩm
-- Hướng dẫn cách mua hàng và thanh toán
-- Trả lời các câu hỏi về chính sách, quy định
-- Giúp đỡ người dùng khi gặp vấn đề
+    // Xây dựng messages array theo format Gemini API
+    const geminiHistory = [];
 
-Hãy trả lời một cách:
-- Thân thiện, nhiệt tình
-- Ngắn gọn, dễ hiểu
-- Chuyên nghiệp nhưng gần gũi
-- Bằng tiếng Việt
-
-Nếu không biết câu trả lời, hãy thành thật và hướng dẫn người dùng liên hệ với quản trị viên.`;
-
-    // Chuẩn bị lịch sử chat
-    // Nếu chưa có lịch sử, thêm system prompt
+    // Nếu chưa có history → thêm system turn đầu tiên
     if (history.length === 0) {
-      history.push({
+      geminiHistory.push({
         role: 'user',
-        parts: [{ text: systemPrompt }]
+        parts: [{ text: systemPrompt }],
       });
-      history.push({
+      geminiHistory.push({
         role: 'model',
-        parts: [{ text: 'Xin chào! 👋 Tôi là chatbot hỗ trợ của bạn. Tôi có thể giúp gì cho bạn hôm nay?' }]
+        parts: [{ text: 'Xin chào! 👋 Tôi là trợ lý AI của sàn đồ cũ sinh viên Đại học Đại Nam. Tôi có thể giúp bạn tìm sản phẩm, giải đáp thắc mắc về mua bán, chính sách và hướng dẫn sử dụng ứng dụng. Bạn cần hỗ trợ gì hôm nay?' }],
       });
+    } else {
+      // Thêm history cũ (bỏ system turn cũ, giữ conversation)
+      geminiHistory.push(...history);
     }
 
-    // Thêm tin nhắn của user vào lịch sử
-    history.push({
-      role: 'user',
-      parts: [{ text: userMessage }]
-    });
+    // Tin nhắn hiện tại của user (kèm context mới nếu có)
+    const userMessageWithContext = ragContext
+      ? `${userMessage}\n\n[RAG Context - Chỉ dùng nội bộ, không hiển thị ra ngoài]\n${ragContext}`
+      : userMessage;
 
-    // Giới hạn lịch sử để tránh quá dài (giữ 20 tin nhắn gần nhất)
-    if (history.length > 20) {
-      history = history.slice(-20);
-    }
+    // ── RAG Step 5: Call Gemini ───────────────────────────────────────────
+    // Thứ tự ưu tiên: thử model mới nhất trước, fallback dần
+    const MODEL_NAMES = [
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-pro',
+      'gemini-pro',
+    ];
 
-    // Gửi request đến Gemini với fallback nếu model không hoạt động
-    let result;
-    let response;
-    let text;
-    
-    try {
-      const chat = model.startChat({
-        history: history.slice(0, -1) // Bỏ tin nhắn cuối (tin nhắn hiện tại)
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || !apiKey.trim()) {
+      return res.status(500).json({
+        success: false,
+        message: 'Chatbot chưa được cấu hình. Vui lòng kiểm tra GEMINI_API_KEY trong file .env.',
       });
-      result = await chat.sendMessage(userMessage);
-      response = await result.response;
-      text = response.text();
-    } catch (modelError) {
-      // Nếu model hiện tại không hoạt động (404), thử model khác
-      if (modelError.status === 404 || modelError.message?.includes('not found')) {
-        console.warn('⚠️ Model không hoạt động, đang thử model khác...');
-        
-        // Thử các model khác (ưu tiên gemini-2.5-flash và các model tương tự)
-        const alternativeModels = ['gemini-2.5-flash', 'models/gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
-        let success = false;
-        
-        for (const altModel of alternativeModels) {
-          try {
-            console.log(`🔄 Thử model: ${altModel}`);
-            const altGenAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY.trim());
-            const altModelInstance = altGenAI.getGenerativeModel({ model: altModel });
-            const chat = altModelInstance.startChat({
-              history: history.slice(0, -1)
-            });
-            result = await chat.sendMessage(userMessage);
-            response = await result.response;
-            text = response.text();
-            
-            // Nếu thành công, cập nhật model chính
-            model = altModelInstance;
-            console.log(`✅ Đã chuyển sang model: ${altModel}`);
-            success = true;
-            break;
-          } catch (altError) {
-            console.warn(`❌ Model ${altModel} cũng không hoạt động`);
-            console.warn(`   Error: ${altError.message}`);
-            console.warn(`   Status: ${altError.status || 'N/A'}`);
-            continue;
-          }
+    }
+    const genAI = new GoogleGenerativeAI(apiKey.trim());
+
+    let responseText = null;
+    let lastError = null;
+
+    for (const modelName of MODEL_NAMES) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const chat = model.startChat({ history: geminiHistory });
+        const result = await chat.sendMessage(userMessageWithContext);
+        responseText = result.response.text();
+        console.log(`[chatbot] OK model: ${modelName}`);
+        break;
+      } catch (err) {
+        const msg = (err.message || '').toLowerCase();
+        lastError = err;
+
+        const is404 = msg.includes('404') || msg.includes('not found') || msg.includes('not supported');
+        const is429 = msg.includes('429') || msg.includes('quota') || msg.includes('resource_exhausted') || msg.includes('too many');
+        const is403 = msg.includes('403') || msg.includes('forbidden') || msg.includes('permission');
+
+        console.warn(`[chatbot] Model ${modelName} | HTTP ${err.status || '?'} | ${err.message?.slice(0, 80)}`);
+
+        if (is404) {
+          // Model không tồn tại → thử tiếp
+          continue;
         }
-        
-        if (!success) {
-          throw new Error('Không tìm thấy model nào hoạt động. Vui lòng kiểm tra API key và quyền truy cập.');
+        if (is429) {
+          // Hết quota → thử model khác cũng vô ích (cùng API key)
+          // → Dừng và trả về lỗi thân thiện
+          console.warn('[chatbot] Quota/rate-limit hit — stopping fallback');
+          return res.status(429).json({
+            success: false,
+            message: 'Chatbot đang bận (hết quota API). Vui lòng thử lại sau ít phút ⏰',
+          });
         }
-      } else {
-        throw modelError;
+        if (is403) {
+          return res.status(403).json({
+            success: false,
+            message: 'API key không có quyền truy cập Gemini. Kiểm tra GEMINI_API_KEY trong file .env.',
+          });
+        }
+        // Lỗi không xác định → throw cho handler ngoài
+        throw err;
       }
     }
 
-    // Thêm phản hồi của AI vào lịch sử
+    if (!responseText) {
+      console.error('[chatbot] All models exhausted:', lastError?.message);
+      return res.status(503).json({
+        success: false,
+        message: 'Tất cả model AI không khả dụng. Vui lòng thử lại sau.',
+      });
+    }
+
+    // ── Step 6: Lưu history ───────────────────────────────────────────────
+    history.push({
+      role: 'user',
+      parts: [{ text: userMessage }], // Lưu message gốc (không kèm context)
+    });
     history.push({
       role: 'model',
-      parts: [{ text: text }]
+      parts: [{ text: responseText }],
     });
 
-    // Lưu lịch sử
+    // Giới hạn history (giữ MAX_HISTORY lượt gần nhất, mỗi lượt = 2 message)
+    if (history.length > MAX_HISTORY * 2) {
+      history = history.slice(-MAX_HISTORY * 2);
+    }
     chatHistory.set(currentSessionId, history);
 
-    // Trả về kết quả
-    res.status(200).json({
+    // ── Step 7: Response ──────────────────────────────────────────────────
+    return res.status(200).json({
       success: true,
-      message: text,
-      sessionId: currentSessionId
+      message: responseText,
+      sessionId: currentSessionId,
+      products: productsFound.length > 0 ? productsFound : undefined,
+      // Debug info (có thể bỏ khi production)
+      _rag: process.env.NODE_ENV === 'development' ? {
+        knowledgeHits: knowledgeHits.length,
+        productHits: productHits.length,
+        contextLength: ragContext.length,
+      } : undefined,
     });
 
   } catch (error) {
-    // Log chi tiết lỗi để debug
-    console.error('\n========== CHATBOT ERROR DETAILS ==========');
-    console.error('Error Type:', error.constructor.name);
-    console.error('Error Message:', error.message);
-    console.error('Error Status:', error.status || 'N/A');
-    console.error('Error Status Text:', error.statusText || 'N/A');
-    
-    // Log API key (một phần để debug)
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey) {
-      console.error('API Key (first 15 chars):', apiKey.substring(0, 15) + '...');
-      console.error('API Key Length:', apiKey.length);
-    } else {
-      console.error('❌ API Key: NOT FOUND');
-    }
-    
-    // Log model đang sử dụng
-    console.error('Model đang sử dụng:', model ? 'gemini-2.5-flash' : 'NOT INITIALIZED');
-    
-    // Log error details nếu có
-    if (error.errorDetails) {
-      console.error('Error Details:', JSON.stringify(error.errorDetails, null, 2));
-    }
-    
-    // Log stack trace trong development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Stack Trace:', error.stack);
-    }
-    
-    // Log request info
-    console.error('Request Body:', JSON.stringify(req.body, null, 2));
-    console.error('==========================================\n');
-    
-    // Xử lý các lỗi cụ thể
-    let errorMessage = 'Có lỗi xảy ra khi xử lý tin nhắn. Vui lòng thử lại sau.';
-    let errorCode = 'UNKNOWN_ERROR';
-    
-    // Kiểm tra lỗi API key
-    if (error.status === 400 && error.errorDetails) {
-      const errorInfo = error.errorDetails.find(detail => detail.reason === 'API_KEY_INVALID');
-      if (errorInfo) {
-        errorCode = 'API_KEY_INVALID';
-        errorMessage = 'API key không hợp lệ. Vui lòng kiểm tra lại GEMINI_API_KEY trong file .env và đảm bảo API key còn hiệu lực.';
-      }
+    console.error('[chatbot] Error:', error.message);
+
+    let message = 'Có lỗi xảy ra. Vui lòng thử lại sau.';
+    if (error.message?.includes('API_KEY') || error.status === 400) {
+      message = 'API key không hợp lệ. Vui lòng kiểm tra lại GEMINI_API_KEY.';
     } else if (error.status === 403) {
-      errorCode = 'API_KEY_FORBIDDEN';
-      errorMessage = 'API key không có quyền truy cập. Vui lòng kiểm tra API key và đảm bảo Generative Language API đã được kích hoạt.';
-    } else if (error.status === 404) {
-      errorCode = 'MODEL_NOT_FOUND';
-      errorMessage = 'Model không tìm thấy. Có thể model không được hỗ trợ hoặc API key không có quyền truy cập model này.';
-    } else if (error.message?.includes('API_KEY') || error.message?.includes('API key not valid')) {
-      errorCode = 'API_KEY_INVALID';
-      errorMessage = 'API key không hợp lệ. Vui lòng kiểm tra lại GEMINI_API_KEY trong file .env.';
-    } else if (error.message?.includes('quota') || error.message?.includes('limit')) {
-      errorCode = 'QUOTA_EXCEEDED';
-      errorMessage = 'Đã vượt quá giới hạn sử dụng. Vui lòng thử lại sau.';
-    } else if (error.message?.includes('not found') || error.message?.includes('404')) {
-      errorCode = 'MODEL_NOT_FOUND';
-      errorMessage = 'Model không tìm thấy. Vui lòng kiểm tra model name và API key.';
+      message = 'API key không có quyền truy cập. Kiểm tra cài đặt Gemini API.';
+    } else if (error.message?.includes('quota') || error.message?.includes('429')) {
+      message = 'Đã vượt quá giới hạn sử dụng. Vui lòng thử lại sau ít phút.';
     }
 
-    res.status(error.status || 500).json({
+    return res.status(error.status || 500).json({
       success: false,
-      message: errorMessage,
-      errorCode: errorCode,
-      error: process.env.NODE_ENV === 'development' ? {
-        message: error.message,
-        status: error.status,
-        statusText: error.statusText,
-        details: error.errorDetails,
-        apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'NOT FOUND',
-        model: 'gemini-2.5-flash'
-      } : undefined
+      message,
     });
   }
 };
 
-// Hàm xóa lịch sử chat
+// ─── Clear History ────────────────────────────────────────────────────────
 const clearChatHistory = (req, res) => {
   try {
     const { sessionId } = req.body;
-    const currentSessionId = sessionId || 'default';
-    
-    chatHistory.delete(currentSessionId);
-    
-    res.status(200).json({
-      success: true,
-      message: 'Đã xóa lịch sử chat'
-    });
+    chatHistory.delete(sessionId || 'default');
+    res.status(200).json({ success: true, message: 'Đã xóa lịch sử chat' });
   } catch (error) {
-    console.error('Clear history error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Có lỗi xảy ra khi xóa lịch sử'
-    });
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra khi xóa lịch sử' });
   }
 };
 
-module.exports = {
-  chatWithGemini,
-  clearChatHistory
-};
-
+module.exports = { chatWithGemini, clearChatHistory };

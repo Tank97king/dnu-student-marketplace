@@ -4,6 +4,9 @@ const { body, param, validationResult } = require('express-validator');
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.log('❌ Validation failed:');
+    console.log('Request body:', req.body);
+    console.log('Validation errors:', errors.array());
     return res.status(400).json({
       success: false,
       message: 'Dữ liệu không hợp lệ',
@@ -24,16 +27,16 @@ exports.validateCreateProduct = [
     .withMessage('Tiêu đề phải từ 5-100 ký tự'),
   body('description')
     .trim()
-    .isLength({ min: 10, max: 2000 })
-    .withMessage('Mô tả phải từ 10-2000 ký tự'),
+    .isLength({ min: 5, max: 2000 })
+    .withMessage('Mô tả phải từ 5-2000 ký tự'),
   body('price')
     .isFloat({ min: 0.01 })
     .withMessage('Giá phải là số dương và lớn hơn 0'),
   body('category')
-    .isIn(['electronics', 'books', 'clothing', 'furniture', 'other'])
+    .isIn(['Sách', 'Điện tử', 'Quần áo', 'Nội thất', 'Văn phòng phẩm', 'Thể thao', 'Khác'])
     .withMessage('Danh mục không hợp lệ'),
   body('condition')
-    .isIn(['new', 'like-new', 'good', 'fair', 'poor'])
+    .isIn(['Rất tốt', 'Tốt', 'Khá', 'Đã dùng nhiều', 'Cần sửa chữa'])
     .withMessage('Tình trạng không hợp lệ'),
   body('location')
     .optional()
@@ -78,11 +81,11 @@ exports.validateUpdateProduct = [
     .withMessage('Giá phải là số dương và lớn hơn 0'),
   body('category')
     .optional()
-    .isIn(['electronics', 'books', 'clothing', 'furniture', 'other'])
+    .isIn(['Sách', 'Điện tử', 'Quần áo', 'Nội thất', 'Văn phòng phẩm', 'Thể thao', 'Khác'])
     .withMessage('Danh mục không hợp lệ'),
   body('condition')
     .optional()
-    .isIn(['new', 'like-new', 'good', 'fair', 'poor'])
+    .isIn(['Rất tốt', 'Tốt', 'Khá', 'Đã dùng nhiều', 'Cần sửa chữa'])
     .withMessage('Tình trạng không hợp lệ'),
   handleValidationErrors
 ];

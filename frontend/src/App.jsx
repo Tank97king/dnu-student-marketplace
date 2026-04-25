@@ -39,7 +39,7 @@ import AdminRoute from './components/AdminRoute'
 
 function App() {
   console.log('✅ App component rendered')
-  
+
   return (
     <Layout>
       <Routes>
@@ -60,7 +60,7 @@ function App() {
         <Route path="/users/:userId/profile" element={<UserProfile />} />
         <Route path="/user/:userId/reviews" element={<UserReviews />} />
         <Route path="/help" element={<Help />} />
-        
+
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/create-product" element={<CreateProduct />} />
@@ -80,7 +80,7 @@ function App() {
           <Route path="/my-promotions" element={<MyPromotions />} />
           <Route path="/notifications/settings" element={<NotificationSettings />} />
         </Route>
-        
+
         {/* Admin Routes */}
         <Route element={<AdminRoute />}>
           <Route path="/admin" element={<AdminDashboard />} />

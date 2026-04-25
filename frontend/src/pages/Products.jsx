@@ -3,29 +3,41 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Link, useLocation } from 'react-router-dom'
 import { fetchProducts } from '../store/slices/productSlice'
 import SearchAutocomplete from '../components/SearchAutocomplete'
+import api from '../utils/api'
 
 export default function Products() {
   const dispatch = useDispatch()
   const location = useLocation()
   const { products, loading, pagination } = useSelector(state => state.product)
-  const [filters, setFilters] = useState({
-    search: '',
-    category: '',
-    location: '',
-    minPrice: '',
-    maxPrice: '',
-    condition: '',
-    dateRange: '', // 'today', 'week', 'month', 'all'
-    subcategory: '',
-    minRating: '',
-    tags: ''
-  })
+  // Khởi tạo filters từ URL params ngay từ đầu
+  const getInitialFilters = () => {
+    const params = new URLSearchParams(location.search)
+    return {
+      search: params.get('search') || '',
+      category: params.get('category') || '',
+      location: params.get('location') || '',
+      minPrice: params.get('minPrice') || '',
+      maxPrice: params.get('maxPrice') || '',
+      condition: params.get('condition') || '',
+      dateRange: params.get('dateRange') || '',
+      subcategory: params.get('subcategory') || '',
+      minRating: params.get('minRating') || '',
+      tags: params.get('tags') || ''
+    }
+  }
+
+  const [filters, setFilters] = useState(getInitialFilters)
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [priceRange, setPriceRange] = useState([0, 10000000]) // Min và Max giá
+  // --- Semantic Search state ---
+  const [semanticResults, setSemanticResults] = useState(null)
+  const [semanticLoading, setSemanticLoading] = useState(false)
+  const [semanticQuery, setSemanticQuery] = useState('')
+  const [semanticAiEnabled, setSemanticAiEnabled] = useState(false)
   
   // Subcategories cho tất cả các danh mục
   const categorySubcategories = {
-    Electronics: [
+    'Điện tử': [
       { value: '', label: 'Tất cả loại điện tử' },
       { value: 'điện thoại smartphone iphone android', label: 'Điện thoại' },
       { value: 'máy tính bảng tablet ipad', label: 'Máy tính bảng' },
@@ -37,7 +49,7 @@ export default function Products() {
       { value: 'màn hình monitor phụ kiện điện tử', label: 'Phụ kiện (Màn hình,...)' },
       { value: 'ram cpu card linh kiện', label: 'Linh kiện (RAM,...)' }
     ],
-    Books: [
+    'Sách': [
       { value: '', label: 'Tất cả loại sách' },
       { value: 'giáo trình đại học môn học ngành', label: 'Sách giáo trình đại học' },
       { value: 'tham khảo bài tập đề cương ôn thi', label: 'Sách tham khảo, bài tập, đề cương' },
@@ -46,7 +58,7 @@ export default function Products() {
       { value: 'tiểu thuyết truyện light novel manga', label: 'Tiểu thuyết, truyện, light novel, manga' },
       { value: 'tạp chí học lập trình marketing', label: 'Tạp chí, sách học lập trình, marketing' }
     ],
-    Clothing: [
+    'Quần áo': [
       { value: '', label: 'Tất cả loại quần áo' },
       { value: 'áo thun áo sơ mi áo khoác', label: 'Áo thun, áo sơ mi, áo khoác' },
       { value: 'quần jeans quần tây quần thể thao', label: 'Quần jeans, quần tây, quần thể thao' },
@@ -55,7 +67,7 @@ export default function Products() {
       { value: 'giày dép balo túi xách', label: 'Giày, dép, balo, túi xách' },
       { value: 'phụ kiện mũ nón đồng hồ thắt lưng', label: 'Phụ kiện: mũ, nón, đồng hồ, thắt lưng' }
     ],
-    Stationery: [
+    'Văn phòng phẩm': [
       { value: '', label: 'Tất cả loại văn phòng phẩm' },
       { value: 'bút bi bút chì bút highlight', label: 'Bút các loại (bút bi, bút chì, bút highlight)' },
       { value: 'tập vở sổ tay giấy note', label: 'Tập vở, sổ tay, giấy note' },
@@ -64,7 +76,7 @@ export default function Products() {
       { value: 'bảng vẽ kẹp tài liệu khay để bút', label: 'Bảng vẽ, kẹp tài liệu, khay để bút' },
       { value: 'handmade sổ bullet journal sticker', label: 'Sản phẩm handmade học tập (sổ bullet journal, sticker...)' }
     ],
-    Sports: [
+    'Thể thao': [
       { value: '', label: 'Tất cả loại thể thao' },
       { value: 'bóng đá giày bóng áo đấu', label: 'Bóng đá: giày, bóng, áo đấu' },
       { value: 'cầu lông vợt cầu túi thể thao', label: 'Cầu lông: vợt, cầu, túi thể thao' },
@@ -73,7 +85,7 @@ export default function Products() {
       { value: 'đồ bơi kính bơi áo khoác thể thao', label: 'Đồ bơi, kính bơi, áo khoác thể thao' },
       { value: 'đồng hồ đếm bước dây nhảy thiết bị', label: 'Thiết bị nhỏ: đồng hồ đếm bước, dây nhảy' }
     ],
-    Furniture: [
+    'Nội thất': [
       { value: '', label: 'Tất cả loại nội thất' },
       { value: 'giường nệm chăn ga gối', label: 'Giường, nệm, chăn ga gối' },
       { value: 'bàn học ghế học đèn bàn', label: 'Bàn học, ghế học, đèn bàn' },
@@ -94,21 +106,35 @@ export default function Products() {
   const currentSubcategories = categorySubcategories[filters.category] || []
   const hasSubcategories = currentSubcategories.length > 0
 
-  // Đọc query params từ URL
+  // Đọc query params từ URL khi URL thay đổi
   useEffect(() => {
     const params = new URLSearchParams(location.search)
-    const search = params.get('search') || ''
-    const category = params.get('category') || ''
-    
-    setFilters(prev => ({
-      ...prev,
-      search,
-      category
-    }))
+    const newFilters = {
+      search: params.get('search') || '',
+      category: params.get('category') || '',
+      location: params.get('location') || '',
+      minPrice: params.get('minPrice') || '',
+      maxPrice: params.get('maxPrice') || '',
+      condition: params.get('condition') || '',
+      dateRange: params.get('dateRange') || '',
+      subcategory: params.get('subcategory') || '',
+      minRating: params.get('minRating') || '',
+      tags: params.get('tags') || ''
+    }
+    setFilters(newFilters)
   }, [location.search])
 
+  // Fetch products khi filters thay đổi
   useEffect(() => {
-    dispatch(fetchProducts(filters))
+    // Chỉ gửi các params có giá trị (không gửi empty string)
+    const paramsToSend = {}
+    Object.keys(filters).forEach(key => {
+      if (filters[key] && filters[key] !== '') {
+        paramsToSend[key] = filters[key]
+      }
+    })
+    
+    dispatch(fetchProducts(paramsToSend))
   }, [dispatch, filters])
 
   const handleFilterChange = (e) => {
@@ -197,10 +223,51 @@ export default function Products() {
     return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   }
 
+  const handleSemanticSearch = async () => {
+    if (!semanticQuery.trim() || semanticLoading) return
+    setSemanticLoading(true)
+    try {
+      const res = await api.post('/search/semantic', { query: semanticQuery.trim() })
+      setSemanticResults(res.data?.data ?? [])
+      setSemanticAiEnabled(res.data?.aiEnabled ?? false)
+    } catch (e) {
+      setSemanticResults([])
+      alert(e.response?.data?.message || 'Không thể tìm kiếm. Thử lại sau.')
+    } finally {
+      setSemanticLoading(false)
+    }
+  }
+
+  const displayProducts = semanticResults !== null ? semanticResults : products
+  const isSemanticSearch = semanticResults !== null
+
   return (
     <div className="py-6">
       <div className="max-w-7xl mx-auto px-4">
         <h1 className="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200">Danh sách sản phẩm</h1>
+
+        {/* Tìm kiếm Semantic AI */}
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">🧠 Tìm theo <b>ý nghĩa</b> — gõ "đồ ấm mùa đông" có thể ra "áo hoodie", "chăn bông"...</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Ví dụ: đồ ấm mùa đông, thiết bị học tập sinh viên..."
+              className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 placeholder-gray-500"
+              value={semanticQuery}
+              onChange={(e) => setSemanticQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSemanticSearch())}
+            />
+            <button
+              type="button"
+              disabled={semanticLoading || !semanticQuery.trim()}
+              onClick={handleSemanticSearch}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 whitespace-nowrap"
+            >
+              {semanticLoading ? 'Đang tìm...' : '🧠 Tìm ngữ nghĩa'}
+            </button>
+          </div>
+        </div>
 
         {/* Filters */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-4">
@@ -218,8 +285,8 @@ export default function Products() {
             <div>
               <SearchAutocomplete
                 value={filters.search}
-                onChange={(value) => setFilters({ ...filters, search: value })}
-                onSelect={(value) => setFilters({ ...filters, search: value })}
+                onChange={(value) => { setFilters({ ...filters, search: value }); }}
+                onSelect={(value) => { setFilters({ ...filters, search: value }); }}
                 placeholder="Tìm kiếm..."
               />
             </div>
@@ -231,13 +298,13 @@ export default function Products() {
                 onChange={handleFilterChange}
               >
                 <option value="">Tất cả danh mục</option>
-                <option value="Books">Sách</option>
-                <option value="Electronics">Điện tử</option>
-                <option value="Furniture">Nội thất</option>
-                <option value="Clothing">Quần áo</option>
-                <option value="Stationery">Văn phòng phẩm</option>
-                <option value="Sports">Thể thao</option>
-                <option value="Other">Khác</option>
+                <option value="Sách">Sách</option>
+                <option value="Điện tử">Điện tử</option>
+                <option value="Nội thất">Nội thất</option>
+                <option value="Quần áo">Quần áo</option>
+                <option value="Văn phòng phẩm">Văn phòng phẩm</option>
+                <option value="Thể thao">Thể thao</option>
+                <option value="Khác">Khác</option>
               </select>
             </div>
             {/* Subcategory dropdown hiển thị khi category có subcategories */}
@@ -429,14 +496,43 @@ export default function Products() {
         </div>
 
         {/* Products Grid */}
-        {loading ? (
+        {isSemanticSearch && (
+          <div className="mb-4 flex items-center justify-between bg-purple-50 dark:bg-purple-900/20 px-4 py-2 rounded-lg">
+            <p className="text-purple-700 dark:text-purple-300 text-sm">
+              🧠 Kết quả ngữ nghĩa: &quot;{semanticQuery}&quot; — {displayProducts?.length ?? 0} sản phẩm
+              {!semanticAiEnabled && <span className="ml-2 text-xs text-gray-500">(Chế độ thường — chưa có embedding)</span>}
+            </p>
+            <button
+              type="button"
+              onClick={() => { setSemanticResults(null); setSemanticQuery(''); }}
+              className="text-sm text-purple-600 dark:text-purple-400 hover:underline ml-4"
+            >
+              ✕ Xóa
+            </button>
+          </div>
+        )}
+        {loading && !isSemanticSearch ? (
           <div className="text-center py-12 text-gray-800 dark:text-gray-200">Đang tải...</div>
-        ) : products?.length > 0 ? (
+        ) : semanticLoading ? (
+          <div className="text-center py-12 text-purple-600 dark:text-purple-400">🧠 Đang phân tích ngữ nghĩa...</div>
+        ) : displayProducts?.length > 0 ? (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {products.map((product) => (
+              {displayProducts.map((product) => (
                 <Link key={product._id} to={`/products/${product._id}`}>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full relative">
+                    {/* Badge AI Match (chỉ khi Semantic Search) */}
+                    {isSemanticSearch && product.aiScore != null && semanticAiEnabled && (
+                      <div className="absolute top-2 left-2 z-10">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full shadow ${
+                          product.aiScore >= 80 ? 'bg-purple-600 text-white'
+                          : product.aiScore >= 60 ? 'bg-purple-400 text-white'
+                          : 'bg-gray-400 text-white'
+                        }`}>
+                          🧠 {product.aiScore}% phù hợp
+                        </span>
+                      </div>
+                    )}
                     <div className="w-full h-48 overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-700">
                       <img
                         src={product.images?.[0] || 'https://via.placeholder.com/400x400/cccccc/ffffff?text=No+Image'}
@@ -462,8 +558,8 @@ export default function Products() {
               ))}
             </div>
 
-            {/* Pagination */}
-            {pagination?.pages > 1 && (
+            {/* Pagination - chỉ khi không phải tìm kiếm AI */}
+            {!isSemanticSearch && pagination?.pages > 1 && (
               <div className="mt-6 flex justify-center gap-2">
                 {[...Array(pagination.pages)].map((_, i) => (
                   <button

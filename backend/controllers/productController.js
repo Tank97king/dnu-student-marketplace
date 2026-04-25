@@ -1,6 +1,10 @@
 const Product = require('../models/Product');
 const Comment = require('../models/Comment');
 const { upload, uploadToCloudinary } = require('../utils/uploadImage');
+const { moderateContent } = require('../utils/contentModeration');
+const { generateContent } = require('../utils/gemini');
+const { embedAndSaveProduct } = require('../utils/embeddingService');
+
 
 // @desc    Create product
 // @route   POST /api/products
@@ -50,7 +54,23 @@ exports.createProduct = async (req, res) => {
       });
     }
 
+    // AI Moderation: kiểm duyệt nội dung
+    const moderation = await moderateContent(title, description);
+    if (moderation.status === 'reject') {
+      return res.status(400).json({
+        success: false,
+        message: 'Nội dung chưa phù hợp: ' + (moderation.reason || 'Vui lòng chỉnh sửa lại.')
+      });
+    }
+    productData.moderationStatus = moderation.status;
+    productData.moderationReason = moderation.reason || null;
+
     const product = await Product.create(productData);
+
+    // Tạo embedding ngầm (background) để hỗ trợ Semantic Search
+    embedAndSaveProduct(product).catch(err =>
+      console.warn('[embeddingService] Embed after create failed:', err.message)
+    );
 
     res.status(201).json({
       success: true,
@@ -64,6 +84,7 @@ exports.createProduct = async (req, res) => {
     });
   }
 };
+
 
 // @desc    Get all products
 // @route   GET /api/products
@@ -87,17 +108,58 @@ exports.getProducts = async (req, res) => {
 
     const query = {};
     
-    // Search - improved to support regex if text index not available
+    // Search: tìm theo cụm từ hoặc theo LOẠI (subcategory) — loại phải khớp đúng như lúc đăng bán
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { tags: { $in: [new RegExp(search, 'i')] } }
-      ];
+      const trimmed = search.trim();
+      const words = trimmed.split(/\s+/).filter(w => w.length >= 2);
+      // Khi là subcategory (nhiều từ, ví dụ "giáo trình đại học môn học ngành"): sản phẩm phải có ĐỦ các từ
+      // (đúng với loại đã chọn khi đăng bán — tags đã lưu các từ đó)
+      if (words.length >= 3) {
+        const mustMatchAll = words.map(word => ({
+          $or: [
+            { title: { $regex: word, $options: 'i' } },
+            { description: { $regex: word, $options: 'i' } },
+            { tags: { $in: [new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')] } }
+          ]
+        }));
+        query.$and = query.$and || [];
+        query.$and.push(...mustMatchAll);
+      } else {
+        // 1–2 từ: match cụm (điện thoại, laptop cũ, ...)
+        query.$or = [
+          { title: { $regex: trimmed, $options: 'i' } },
+          { description: { $regex: trimmed, $options: 'i' } },
+          { tags: { $in: [new RegExp(trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')] } }
+        ];
+      }
     }
     
     // Filters
-    if (category) query.category = category;
+    if (category) {
+      let decodedCategory = decodeURIComponent(category).trim()
+      const categoryEnToVi = {
+        Electronics: 'Điện tử',
+        Books: 'Sách',
+        Furniture: 'Nội thất',
+        Clothing: 'Quần áo',
+        Stationery: 'Văn phòng phẩm',
+        Sports: 'Thể thao',
+        Other: 'Khác'
+      }
+      if (categoryEnToVi[decodedCategory]) decodedCategory = categoryEnToVi[decodedCategory]
+      // Hiển thị cả sản phẩm có category tiếng Anh (Electronics, Books...) hoặc tiếng Việt (Điện tử, Sách...)
+      const categoryViToEn = {
+        'Điện tử': ['Điện tử', 'Electronics'],
+        'Sách': ['Sách', 'Books'],
+        'Nội thất': ['Nội thất', 'Furniture'],
+        'Quần áo': ['Quần áo', 'Clothing'],
+        'Văn phòng phẩm': ['Văn phòng phẩm', 'Stationery'],
+        'Thể thao': ['Thể thao', 'Sports'],
+        'Khác': ['Khác', 'Other']
+      }
+      const toMatch = categoryViToEn[decodedCategory] || [decodedCategory]
+      query.category = toMatch.length > 1 ? { $in: toMatch } : toMatch[0]
+    }
     if (condition) query.condition = condition;
     if (location) query.location = location;
     
@@ -149,6 +211,11 @@ exports.getProducts = async (req, res) => {
     // Pagination
     const skip = (page - 1) * limit;
 
+    // Debug: log query để kiểm tra
+    if (query.category) {
+      console.log('Query object:', JSON.stringify(query, null, 2))
+    }
+
     const products = await Product.find(query)
       .sort(sortOption)
       .skip(skip)
@@ -157,6 +224,12 @@ exports.getProducts = async (req, res) => {
       .select('-__v');
 
     const total = await Product.countDocuments(query);
+    
+    // Debug: log số lượng sản phẩm tìm được
+    if (query.category) {
+      const catLabel = query.category.$in ? query.category.$in.join(', ') : query.category
+      console.log(`Found ${total} products with category: ${catLabel}`)
+    }
 
     res.json({
       success: true,
@@ -293,7 +366,25 @@ exports.updateProduct = async (req, res) => {
       });
     }
 
+    // AI Moderation khi cập nhật title/description
+    const modTitle = product.title || '';
+    const modDesc = product.description || '';
+    const moderation = await moderateContent(modTitle, modDesc);
+    if (moderation.status === 'reject') {
+      return res.status(400).json({
+        success: false,
+        message: 'Nội dung chưa phù hợp: ' + (moderation.reason || 'Vui lòng chỉnh sửa lại.')
+      });
+    }
+    product.moderationStatus = moderation.status;
+    product.moderationReason = moderation.reason || null;
+
     product = await product.save();
+
+    // Cập nhật embedding ngầm (background)
+    embedAndSaveProduct(product).catch(err =>
+      console.warn('[embeddingService] Embed after update failed:', err.message)
+    );
 
     res.json({
       success: true,
@@ -307,6 +398,7 @@ exports.updateProduct = async (req, res) => {
     });
   }
 };
+
 
 // @desc    Delete product
 // @route   DELETE /api/products/:id
@@ -515,6 +607,96 @@ exports.rejectProduct = async (req, res) => {
     res.json({
       success: true,
       message: 'Từ chối sản phẩm thành công'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    AI gợi ý category và tags từ title + description
+// @route   POST /api/products/ai-suggest-metadata
+// @access  Public
+exports.suggestCategoryAndTags = async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    const text = [title, description].filter(Boolean).join(' ');
+    if (!text.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập ít nhất tiêu đề hoặc mô tả'
+      });
+    }
+    const prompt = `Dựa trên tiêu đề và mô tả sản phẩm sau, trả về ĐÚNG 1 JSON với 2 trường (không thêm gì khác):
+- category: chỉ một trong: "Sách", "Điện tử", "Quần áo", "Nội thất", "Văn phòng phẩm", "Thể thao", "Khác"
+- tags: mảng 5-10 từ khóa tiếng Việt hoặc tiếng Anh, ví dụ: ["sách giáo trình", "toán học"]
+
+Nội dung:
+---
+${text.slice(0, 1500)}
+---`;
+
+    const response = await generateContent(prompt);
+    if (!response) {
+      return res.status(503).json({
+        success: false,
+        message: 'AI tạm thời không phản hồi. Thử lại sau.'
+      });
+    }
+    try {
+      const jsonStr = response.replace(/```json?\s*|\s*```/g, '').trim();
+      const parsed = JSON.parse(jsonStr);
+      const category = ['Sách', 'Điện tử', 'Quần áo', 'Nội thất', 'Văn phòng phẩm', 'Thể thao', 'Khác'].includes(parsed.category) ? parsed.category : 'Khác';
+      const tags = Array.isArray(parsed.tags) ? parsed.tags.slice(0, 10) : [];
+      return res.json({
+        success: true,
+        data: { category, tags }
+      });
+    } catch (e) {
+      return res.status(500).json({
+        success: false,
+        message: 'Không phân tích được kết quả AI'
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    AI gợi ý mô tả sản phẩm từ title (và mô tả thô nếu có)
+// @route   POST /api/products/ai-suggest-description
+// @access  Public
+exports.suggestDescription = async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập tiêu đề'
+      });
+    }
+    const prompt = `Bạn viết một đoạn mô tả sản phẩm ngắn gọn, thân thiện cho sàn mua bán đồ cũ sinh viên.
+- Tiêu đề sản phẩm: ${String(title).trim()}
+${description ? `- Mô tả thô (có thể dựa vào): ${String(description).slice(0, 500)}` : ''}
+
+Viết 2-4 câu mô tả bằng tiếng Việt, không chèn từ "mô tả" hay "sản phẩm này". Chỉ trả về đoạn mô tả, không giải thích.`;
+
+    const response = await generateContent(prompt);
+    if (!response) {
+      return res.status(503).json({
+        success: false,
+        message: 'AI tạm thời không phản hồi. Thử lại sau.'
+      });
+    }
+    const desc = response.trim();
+    return res.json({
+      success: true,
+      data: { description: desc }
     });
   } catch (error) {
     res.status(500).json({

@@ -2,13 +2,14 @@ import React, { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { createProduct } from '../store/slices/productSlice'
+import api from '../utils/api'
 
 export default function CreateProduct() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const { loading } = useSelector(state => state.product)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
-  
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -21,10 +22,12 @@ export default function CreateProduct() {
     images: []
   })
   const [imageError, setImageError] = useState('')
+  const [aiLoadingMeta, setAiLoadingMeta] = useState(false)
+  const [aiLoadingDesc, setAiLoadingDesc] = useState(false)
 
   // Subcategories cho tất cả các danh mục
   const categorySubcategories = {
-    Electronics: [
+    'Điện tử': [
       { value: '', label: 'Chọn loại điện tử' },
       { value: 'điện thoại smartphone iphone android', label: 'Điện thoại' },
       { value: 'máy tính bảng tablet ipad', label: 'Máy tính bảng' },
@@ -36,7 +39,7 @@ export default function CreateProduct() {
       { value: 'màn hình monitor phụ kiện điện tử', label: 'Phụ kiện (Màn hình,...)' },
       { value: 'ram cpu card linh kiện', label: 'Linh kiện (RAM,...)' }
     ],
-    Books: [
+    'Sách': [
       { value: '', label: 'Chọn loại sách' },
       { value: 'giáo trình đại học môn học ngành', label: 'Sách giáo trình đại học' },
       { value: 'tham khảo bài tập đề cương ôn thi', label: 'Sách tham khảo, bài tập, đề cương' },
@@ -45,7 +48,7 @@ export default function CreateProduct() {
       { value: 'tiểu thuyết truyện light novel manga', label: 'Tiểu thuyết, truyện, light novel, manga' },
       { value: 'tạp chí học lập trình marketing', label: 'Tạp chí, sách học lập trình, marketing' }
     ],
-    Clothing: [
+    'Quần áo': [
       { value: '', label: 'Chọn loại quần áo' },
       { value: 'áo thun áo sơ mi áo khoác', label: 'Áo thun, áo sơ mi, áo khoác' },
       { value: 'quần jeans quần tây quần thể thao', label: 'Quần jeans, quần tây, quần thể thao' },
@@ -54,7 +57,7 @@ export default function CreateProduct() {
       { value: 'giày dép balo túi xách', label: 'Giày, dép, balo, túi xách' },
       { value: 'phụ kiện mũ nón đồng hồ thắt lưng', label: 'Phụ kiện: mũ, nón, đồng hồ, thắt lưng' }
     ],
-    Stationery: [
+    'Văn phòng phẩm': [
       { value: '', label: 'Chọn loại văn phòng phẩm' },
       { value: 'bút bi bút chì bút highlight', label: 'Bút các loại (bút bi, bút chì, bút highlight)' },
       { value: 'tập vở sổ tay giấy note', label: 'Tập vở, sổ tay, giấy note' },
@@ -63,7 +66,7 @@ export default function CreateProduct() {
       { value: 'bảng vẽ kẹp tài liệu khay để bút', label: 'Bảng vẽ, kẹp tài liệu, khay để bút' },
       { value: 'handmade sổ bullet journal sticker', label: 'Sản phẩm handmade học tập (sổ bullet journal, sticker...)' }
     ],
-    Sports: [
+    'Thể thao': [
       { value: '', label: 'Chọn loại thể thao' },
       { value: 'bóng đá giày bóng áo đấu', label: 'Bóng đá: giày, bóng, áo đấu' },
       { value: 'cầu lông vợt cầu túi thể thao', label: 'Cầu lông: vợt, cầu, túi thể thao' },
@@ -72,7 +75,7 @@ export default function CreateProduct() {
       { value: 'đồ bơi kính bơi áo khoác thể thao', label: 'Đồ bơi, kính bơi, áo khoác thể thao' },
       { value: 'đồng hồ đếm bước dây nhảy thiết bị', label: 'Thiết bị nhỏ: đồng hồ đếm bước, dây nhảy' }
     ],
-    Furniture: [
+    'Nội thất': [
       { value: '', label: 'Chọn loại nội thất' },
       { value: 'giường nệm chăn ga gối', label: 'Giường, nệm, chăn ga gối' },
       { value: 'bàn học ghế học đèn bàn', label: 'Bàn học, ghế học, đèn bàn' },
@@ -95,19 +98,19 @@ export default function CreateProduct() {
 
   const handleChange = (e) => {
     const newFormData = { ...formData, [e.target.name]: e.target.value }
-    
+
     // Reset subcategory khi đổi category
     if (e.target.name === 'category') {
       newFormData.subcategory = ''
     }
-    
+
     setFormData(newFormData)
   }
 
   const handleImageChange = (e) => {
     setImageError('')
     const files = Array.from(e.target.files)
-    
+
     // Kiểm tra số lượng ảnh
     if (files.length > 5) {
       setImageError('Tối đa 5 ảnh cho mỗi sản phẩm')
@@ -118,7 +121,7 @@ export default function CreateProduct() {
     // Kiểm tra từng file
     const maxSize = 2 * 1024 * 1024 // 2MB
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-    
+
     const invalidFiles = files.filter(file => {
       if (file.size > maxSize) {
         return true
@@ -145,7 +148,7 @@ export default function CreateProduct() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     // Validate images
     if (formData.images.length === 0) {
       setImageError('Vui lòng chọn ít nhất 1 ảnh')
@@ -167,8 +170,10 @@ export default function CreateProduct() {
       }
     }
 
+    // Tạo submitData và loại bỏ subcategory vì backend không chấp nhận
+    const { subcategory, ...dataToSubmit } = formData
     const submitData = {
-      ...formData,
+      ...dataToSubmit,
       tags: finalTags
     }
 
@@ -201,7 +206,29 @@ export default function CreateProduct() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mô tả *</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mô tả *</label>
+            <button
+              type="button"
+              disabled={!formData.title.trim() || aiLoadingDesc}
+              onClick={async () => {
+                setAiLoadingDesc(true)
+                try {
+                  const res = await api.post('/products/ai-suggest-description', { title: formData.title, description: formData.description })
+                  if (res.data?.success && res.data?.data?.description) {
+                    setFormData(prev => ({ ...prev, description: res.data.data.description }))
+                  }
+                } catch (e) {
+                  alert(e.response?.data?.message || 'Không thể gợi ý mô tả')
+                } finally {
+                  setAiLoadingDesc(false)
+                }
+              }}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+            >
+              {aiLoadingDesc ? 'Đang xử lý...' : '✨ AI gợi ý mô tả'}
+            </button>
+          </div>
           <textarea
             name="description"
             required
@@ -226,7 +253,34 @@ export default function CreateProduct() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Danh mục *</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Danh mục *</label>
+              <button
+                type="button"
+                disabled={!(formData.title.trim() || formData.description.trim()) || aiLoadingMeta}
+                onClick={async () => {
+                  setAiLoadingMeta(true)
+                  try {
+                    const res = await api.post('/products/ai-suggest-metadata', { title: formData.title, description: formData.description })
+                    if (res.data?.success && res.data?.data) {
+                      const { category, tags } = res.data.data
+                      setFormData(prev => ({
+                        ...prev,
+                        category: category || prev.category,
+                        tags: Array.isArray(tags) ? tags.join(', ') : (tags || prev.tags)
+                      }))
+                    }
+                  } catch (e) {
+                    alert(e.response?.data?.message || 'Không thể gợi ý')
+                  } finally {
+                    setAiLoadingMeta(false)
+                  }
+                }}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+              >
+                {aiLoadingMeta ? 'Đang xử lý...' : '✨ Gợi ý danh mục & tags'}
+              </button>
+            </div>
             <select
               name="category"
               required
@@ -235,13 +289,13 @@ export default function CreateProduct() {
               onChange={handleChange}
             >
               <option value="">Chọn danh mục</option>
-              <option value="Books">Sách</option>
-              <option value="Electronics">Điện tử</option>
-              <option value="Furniture">Nội thất</option>
-              <option value="Clothing">Quần áo</option>
-              <option value="Stationery">Văn phòng phẩm</option>
-              <option value="Sports">Thể thao</option>
-              <option value="Other">Khác</option>
+              <option value="Sách">Sách</option>
+              <option value="Điện tử">Điện tử</option>
+              <option value="Nội thất">Nội thất</option>
+              <option value="Quần áo">Quần áo</option>
+              <option value="Văn phòng phẩm">Văn phòng phẩm</option>
+              <option value="Thể thao">Thể thao</option>
+              <option value="Khác">Khác</option>
             </select>
           </div>
         </div>
@@ -249,7 +303,7 @@ export default function CreateProduct() {
         {/* Subcategory dropdown - hiển thị khi category có subcategories */}
         {hasSubcategories && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Loại {formData.category === 'Electronics' ? 'điện tử' : formData.category === 'Books' ? 'sách' : formData.category === 'Clothing' ? 'quần áo' : formData.category === 'Stationery' ? 'văn phòng phẩm' : formData.category === 'Sports' ? 'thể thao' : formData.category === 'Furniture' ? 'nội thất' : ''}</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Loại {formData.category.toLowerCase()}</label>
             <select
               name="subcategory"
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -378,7 +432,7 @@ export default function CreateProduct() {
               Đăng bán thành công!
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-              Sản phẩm của bạn đã được đăng thành công.<br/>
+              Sản phẩm của bạn đã được đăng thành công.<br />
               <span className="font-semibold text-orange-600 dark:text-orange-400">Sản phẩm sẽ được duyệt trong 24h</span> và sẽ hiển thị trên website sau khi admin duyệt.
             </p>
             <div className="flex space-x-3">

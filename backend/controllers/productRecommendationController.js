@@ -4,6 +4,59 @@ const Review = require('../models/Review');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const mongoose = require('mongoose');
+const { generateContent } = require('../utils/gemini');
+
+// @desc    Get AI similar products (Gemini keywords → search)
+// @route   GET /api/products/:id/ai-similar
+// @access  Public
+exports.getAISimilarProducts = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    const text = [product.title, product.description].filter(Boolean).join(' ');
+    if (!text.trim()) {
+      return res.json({ success: true, data: [] });
+    }
+    const prompt = `Sản phẩm: "${product.title}". Mô tả: ${(product.description || '').slice(0, 500)}
+Trả về ĐÚNG 1 JSON: {"keywords": ["từ1", "từ2", ...]} với 5-10 từ khóa ngắn (tiếng Việt hoặc tiếng Anh) mô tả sản phẩm để tìm sản phẩm tương tự. Chỉ trả JSON.`;
+    const response = await generateContent(prompt);
+    if (!response) {
+      return res.json({ success: true, data: [] });
+    }
+    let keywords = [];
+    try {
+      const jsonStr = response.replace(/```json?\s*|\s*```/g, '').trim();
+      const parsed = JSON.parse(jsonStr);
+      keywords = Array.isArray(parsed.keywords) ? parsed.keywords.slice(0, 10) : [];
+    } catch (e) {
+      return res.json({ success: true, data: [] });
+    }
+    if (keywords.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+    const orConditions = keywords.flatMap(kw => [
+      { title: { $regex: kw, $options: 'i' } },
+      { description: { $regex: kw, $options: 'i' } },
+      { tags: { $in: [new RegExp(kw, 'i')] } }
+    ]);
+    const similarProducts = await Product.find({
+      _id: { $ne: product._id },
+      $or: orConditions,
+      isApproved: true,
+      status: 'Available'
+    })
+      .sort({ viewCount: -1, averageRating: -1, createdAt: -1 })
+      .limit(8)
+      .populate('userId', 'name avatar')
+      .select('title images price category location viewCount averageRating');
+    return res.json({ success: true, data: similarProducts });
+  } catch (error) {
+    console.error('Error getAISimilarProducts:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // @desc    Get similar products
 // @route   GET /api/products/:id/similar
@@ -11,7 +64,7 @@ const mongoose = require('mongoose');
 exports.getSimilarProducts = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    
+
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -32,10 +85,10 @@ exports.getSimilarProducts = async (req, res) => {
       isApproved: true,
       status: 'Available'
     })
-    .sort({ viewCount: -1, createdAt: -1 })
-    .limit(8)
-    .populate('userId', 'name avatar')
-    .select('title images price category location viewCount averageRating');
+      .sort({ viewCount: -1, createdAt: -1 })
+      .limit(8)
+      .populate('userId', 'name avatar')
+      .select('title images price category location viewCount averageRating');
 
     res.json({
       success: true,
@@ -61,8 +114,11 @@ exports.getAlsoViewed = async (req, res) => {
     }).distinct('userId');
 
     if (viewers.length === 0) {
-      // If no views, return trending products
-      return exports.getTrendingProducts(req, res);
+      // If no views, return empty array
+      return res.json({
+        success: true,
+        data: []
+      });
     }
 
     // Get products those users also viewed
@@ -86,14 +142,14 @@ exports.getAlsoViewed = async (req, res) => {
     ]);
 
     const productIds = alsoViewed.map(item => item._id);
-    
+
     const products = await Product.find({
       _id: { $in: productIds },
       isApproved: true,
       status: 'Available'
     })
-    .populate('userId', 'name avatar')
-    .select('title images price category location viewCount averageRating');
+      .populate('userId', 'name avatar')
+      .select('title images price category location viewCount averageRating');
 
     // Sort by viewCount from aggregation
     const sortedProducts = products.sort((a, b) => {
@@ -121,10 +177,13 @@ exports.getAlsoViewed = async (req, res) => {
 exports.getRecommendedProducts = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).populate('favorites');
-    
+
     if (!user || !user.favorites || user.favorites.length === 0) {
-      // If no favorites, return trending products
-      return exports.getTrendingProducts(req, res);
+      // If no favorites, return empty array
+      return res.json({
+        success: true,
+        data: []
+      });
     }
 
     // Get categories and tags from favorites
@@ -141,10 +200,10 @@ exports.getRecommendedProducts = async (req, res) => {
       isApproved: true,
       status: 'Available'
     })
-    .sort({ viewCount: -1, averageRating: -1, createdAt: -1 })
-    .limit(12)
-    .populate('userId', 'name avatar')
-    .select('title images price category location viewCount averageRating tags');
+      .sort({ viewCount: -1, averageRating: -1, createdAt: -1 })
+      .limit(12)
+      .populate('userId', 'name avatar')
+      .select('title images price category location viewCount averageRating tags');
 
     res.json({
       success: true,
@@ -171,14 +230,14 @@ exports.getTrendingProducts = async (req, res) => {
       isApproved: true,
       status: 'Available'
     })
-    .sort({ viewCount: -1, createdAt: -1 })
-    .limit(12)
-    .populate('userId', 'name avatar')
-    .select('title images price category location viewCount averageRating')
-    .lean();
+      .sort({ viewCount: -1, createdAt: -1 })
+      .limit(12)
+      .populate('userId', 'name avatar')
+      .select('title images price category location viewCount averageRating')
+      .lean();
 
     console.log('[getTrendingProducts] Found products:', products?.length || 0);
-    
+
     return res.json({
       success: true,
       data: Array.isArray(products) ? products : []
@@ -208,14 +267,14 @@ exports.getLatestProducts = async (req, res) => {
       isApproved: true,
       status: 'Available'
     })
-    .sort({ createdAt: -1 })
-    .limit(12)
-    .populate('userId', 'name avatar')
-    .select('title images price category location viewCount averageRating createdAt')
-    .lean();
+      .sort({ createdAt: -1 })
+      .limit(12)
+      .populate('userId', 'name avatar')
+      .select('title images price category location viewCount averageRating createdAt')
+      .lean();
 
     console.log('[getLatestProducts] Found products:', products?.length || 0);
-    
+
     return res.json({
       success: true,
       data: Array.isArray(products) ? products : []
@@ -238,7 +297,7 @@ exports.getLatestProducts = async (req, res) => {
 exports.getNearbyProducts = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    
+
     if (!user || !user.address) {
       return res.json({
         success: true,
@@ -249,16 +308,16 @@ exports.getNearbyProducts = async (req, res) => {
     // For now, we'll use location field (Campus, Dormitory, Nearby)
     // In a real app, you'd use geolocation
     const products = await Product.find({
-      location: user.address.includes('Campus') ? 'Campus' : 
-                 user.address.includes('Dormitory') ? 'Dormitory' : 'Nearby',
+      location: user.address.includes('Campus') ? 'Campus' :
+        user.address.includes('Dormitory') ? 'Dormitory' : 'Nearby',
       isApproved: true,
       status: 'Available',
       userId: { $ne: req.user.id }
     })
-    .sort({ createdAt: -1 })
-    .limit(12)
-    .populate('userId', 'name avatar')
-    .select('title images price category location viewCount averageRating');
+      .sort({ createdAt: -1 })
+      .limit(12)
+      .populate('userId', 'name avatar')
+      .select('title images price category location viewCount averageRating');
 
     res.json({
       success: true,

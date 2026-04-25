@@ -33,6 +33,8 @@ const storyRoutes = require('./routes/story');
 const collectionRoutes = require('./routes/collection');
 const hashtagRoutes = require('./routes/hashtag');
 const chatbotRoutes = require('./routes/chatbot');
+const couponRoutes = require('./routes/coupon').router;
+const couponAdminRoutes = require('./routes/coupon').adminRouter;
 
 const app = express();
 const server = http.createServer(app);
@@ -63,14 +65,16 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(path.join(__dirname, 'uploads')));
 
+const debugSocket = () => process.env.DEBUG_SOCKET === '1' || process.env.DEBUG_SOCKET === 'true';
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id);
+  if (debugSocket()) console.log('New client connected:', socket.id);
 
   socket.on('join-room', async (userId) => {
     socket.join(`user-${userId}`);
-    socket.userId = userId; // Store userId for disconnect handling
-    console.log(`User ${userId} joined their room`);
+    socket.userId = userId;
+    if (debugSocket()) console.log(`User ${userId} joined their room`);
     
     // Update user online status
     try {
@@ -88,7 +92,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', async () => {
-    console.log('Client disconnected:', socket.id);
+    if (debugSocket()) console.log('Client disconnected:', socket.id);
     
     // Update user offline status
     try {
@@ -173,6 +177,8 @@ app.use('/api/stories', storyRoutes);
 app.use('/api/collections', collectionRoutes);
 app.use('/api/hashtags', hashtagRoutes);
 app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/coupons', couponRoutes);
+app.use('/api/admin/coupons', couponAdminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

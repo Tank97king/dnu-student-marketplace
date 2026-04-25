@@ -9,7 +9,9 @@ const {
   reportProduct,
   approveProduct,
   getPendingProducts,
-  rejectProduct
+  rejectProduct,
+  suggestCategoryAndTags,
+  suggestDescription
 } = require('../controllers/productController');
 const { protect } = require('../middleware/auth');
 const { upload } = require('../utils/uploadImage');
@@ -22,6 +24,8 @@ const router = express.Router();
 
 router.get('/', getProducts);
 router.get('/pending', protect, getPendingProducts);
+router.post('/ai-suggest-metadata', suggestCategoryAndTags);
+router.post('/ai-suggest-description', suggestDescription);
 router.get('/:id', getProduct);
 
 // Protected routes - giới hạn tối đa 5 ảnh với validation

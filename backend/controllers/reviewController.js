@@ -5,6 +5,7 @@ const Order = require('../models/Order');
 const mongoose = require('mongoose');
 const { createAndEmitNotification } = require('../utils/notifications');
 const { uploadToCloudinary } = require('../utils/uploadImage');
+const { analyzeSentiment } = require('../utils/sentimentAnalysis');
 
 // Helper function để cập nhật average rating của user
 const updateUserRating = async (userId) => {
@@ -133,6 +134,15 @@ const createReview = async (req, res) => {
     });
 
     await review.save();
+
+    // AI phân tích sentiment từ comment (bất đồng bộ, không chặn response)
+    if (review.comment && review.comment.trim()) {
+      analyzeSentiment(review.comment)
+        .then(({ sentiment, score }) => {
+          return Review.findByIdAndUpdate(review._id, { sentiment, sentimentScore: score }, { new: true });
+        })
+        .catch(err => console.error('Sentiment analysis error:', err));
+    }
 
     // Populate thông tin người đánh giá
     await review.populate('reviewerId', 'name email avatar');

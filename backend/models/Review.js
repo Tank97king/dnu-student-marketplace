@@ -40,6 +40,17 @@ const reviewSchema = new mongoose.Schema({
   isSeller: {
     type: Boolean,
     required: true
+  },
+  sentiment: {
+    type: String,
+    enum: ['positive', 'neutral', 'negative'],
+    default: null
+  },
+  sentimentScore: {
+    type: Number,
+    min: 1,
+    max: 5,
+    default: null
   }
 }, {
   timestamps: true
