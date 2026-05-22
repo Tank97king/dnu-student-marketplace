@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
 import api from '../utils/api';
 
 export default function BankQRManagement() {
@@ -143,111 +144,136 @@ export default function BankQRManagement() {
 
   if (!user || !user.isSuperAdmin) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center py-12">
-            <p className="text-gray-600 dark:text-gray-400">
-              Chỉ Super Admin mới có quyền truy cập trang này
-            </p>
-          </div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 flex items-center justify-center">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-gray-100 dark:border-gray-700">
+          <span className="text-5xl">🔒</span>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-4 mb-2">Quyền truy cập bị từ chối</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-6">Chỉ Super Admin mới có quyền quản lý thông tin QR Code ngân hàng của hệ thống.</p>
+          <Link to="/admin" className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl transition-all shadow-md">
+            Quay lại Dashboard
+          </Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Quản lý QR Code Ngân Hàng
-          </h1>
-          <button
-            onClick={() => setShowModal(true)}
-            className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
-          >
-            + Thêm QR Code
-          </button>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900/40 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Modern Header Card */}
+        <div className="relative overflow-hidden bg-gradient-to-r from-gray-900 via-indigo-950 to-purple-950 text-white rounded-3xl p-6 sm:p-8 shadow-2xl mb-8">
+          <div className="absolute inset-0 bg-grid-white/[0.03] bg-[size:20px_20px]" />
+          <div className="absolute -top-24 -right-20 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl" />
+          <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-widest text-indigo-300">Cấu hình thanh toán</span>
+              <h1 className="text-3xl font-black mt-1 bg-gradient-to-r from-white via-indigo-100 to-indigo-200 bg-clip-text text-transparent">QR CODE NGÂN HÀNG</h1>
+              <p className="text-indigo-200/80 text-sm mt-1">Quản lý các tài khoản nhận thanh toán của sàn giao dịch</p>
+            </div>
+            <div className="flex gap-3">
+              <Link to="/admin" className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-xl transition-all duration-300 font-medium text-sm backdrop-blur-md">
+                ← Quay lại Dashboard
+              </Link>
+              <button
+                onClick={() => setShowModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl transition-all duration-300 font-bold text-sm shadow-md cursor-pointer"
+              >
+                + Thêm tài khoản QR
+              </button>
+            </div>
+          </div>
         </div>
 
         {loading ? (
-          <div className="text-center py-12">Đang tải...</div>
+          <div className="flex flex-col items-center justify-center py-24 space-y-4">
+            <div className="w-12 h-12 border-4 border-indigo-650 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-500 dark:text-gray-400 font-medium">Đang tải danh sách QR Code...</p>
+          </div>
         ) : bankQRs.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12 text-center">
-            <p className="text-gray-500 dark:text-gray-400 mb-4">Chưa có QR code nào</p>
+          <div className="bg-white dark:bg-gray-800 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700 p-12 text-center shadow-sm">
+            <span className="text-5xl">🏦</span>
+            <p className="text-gray-500 dark:text-gray-400 my-4 font-medium">Chưa có QR Code ngân hàng nào được cấu hình</p>
             <button
               onClick={() => setShowModal(true)}
-              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-md cursor-pointer"
             >
               Thêm QR Code đầu tiên
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {bankQRs.map((bankQR) => (
               <div
                 key={bankQR._id}
-                className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 ${
+                className={`bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden border border-gray-150 dark:border-gray-700/50 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${
                   !bankQR.isActive ? 'opacity-60' : ''
                 }`}
               >
-                <div className="flex justify-between items-start mb-3">
-                  <span
-                    className={`px-2 py-1 rounded text-xs ${
-                      bankQR.isActive
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                    }`}
-                  >
-                    {bankQR.isActive ? 'Đang hoạt động' : 'Đã tắt'}
-                  </span>
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-xs font-bold text-gray-450 uppercase tracking-widest">Tài khoản nhận</span>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        bankQR.isActive
+                          ? 'bg-green-100 text-green-800 dark:bg-green-950/30 dark:text-green-400'
+                          : 'bg-gray-100 text-gray-750 dark:bg-gray-700/40 dark:text-gray-400'
+                      }`}
+                    >
+                      {bankQR.isActive ? 'Hoạt động' : 'Tạm khóa'}
+                    </span>
+                  </div>
+
+                  <div className="relative group overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4 mb-4 flex justify-center">
+                    <img
+                      src={bankQR.qrCodeImage}
+                      alt="QR Code"
+                      className="h-48 object-contain rounded-lg transition-transform duration-300 group-hover:scale-105"
+                    />
+                  </div>
+
+                  <div className="space-y-2 bg-gray-50/50 dark:bg-gray-900/20 p-4 rounded-2xl border border-gray-100/50 dark:border-gray-800 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 font-medium">Ngân hàng</span>
+                      <span className="font-bold text-gray-900 dark:text-white">{bankQR.bankName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 font-medium">Số tài khoản</span>
+                      <span className="font-mono font-bold text-indigo-650 dark:text-indigo-400 text-base">{bankQR.accountNumber}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 font-medium">Chủ tài khoản</span>
+                      <span className="font-bold text-gray-900 dark:text-white uppercase">{bankQR.accountHolder}</span>
+                    </div>
+                    <div className="pt-2 border-t border-gray-100 dark:border-gray-800 text-xs text-gray-400 flex justify-between">
+                      <span>Tạo bởi</span>
+                      <span>{bankQR.createdBy?.name || 'N/A'}</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mb-3">
-                  <img
-                    src={bankQR.qrCodeImage}
-                    alt="QR Code"
-                    className="w-full h-48 object-contain border border-gray-300 dark:border-gray-600 rounded"
-                  />
-                </div>
-
-                <div className="space-y-1 text-sm">
-                  <p className="font-semibold text-gray-900 dark:text-white">
-                    {bankQR.bankName}
-                  </p>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    <strong>STK:</strong> {bankQR.accountNumber}
-                  </p>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    <strong>Chủ TK:</strong> {bankQR.accountHolder}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-500">
-                    Tạo bởi: {bankQR.createdBy?.name || 'N/A'}
-                  </p>
-                </div>
-
-                <div className="flex space-x-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-3 gap-1 p-4 bg-gray-50/50 dark:bg-gray-900/20 border-t border-gray-100 dark:border-gray-800">
                   <button
                     onClick={() => handleEdit(bankQR)}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 text-sm"
+                    className="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-650 dark:text-indigo-400 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-colors cursor-pointer text-center"
                   >
-                    Sửa
+                    ✏️ Sửa
                   </button>
                   <button
                     onClick={() => handleToggleActive(bankQR)}
-                    className={`flex-1 py-2 rounded text-sm ${
+                    className={`py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-center ${
                       bankQR.isActive
-                        ? 'bg-yellow-600 text-white hover:bg-yellow-700'
-                        : 'bg-green-600 text-white hover:bg-green-700'
+                        ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100'
+                        : 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100'
                     }`}
                   >
-                    {bankQR.isActive ? 'Tắt' : 'Bật'}
+                    {bankQR.isActive ? '🔒 Tắt' : '🔓 Bật'}
                   </button>
                   <button
                     onClick={() => handleDelete(bankQR._id)}
-                    className="flex-1 bg-red-600 text-white py-2 rounded hover:bg-red-700 text-sm"
+                    className="bg-red-50 dark:bg-red-900/20 text-red-650 dark:text-red-400 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors cursor-pointer text-center"
                   >
-                    Xóa
+                    🗑️ Xóa
                   </button>
                 </div>
               </div>
@@ -257,16 +283,16 @@ export default function BankQRManagement() {
 
         {/* Add/Edit Modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+            <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full shadow-2xl border border-gray-150 dark:border-gray-700/50 overflow-hidden transform scale-100">
               <div className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {editingQR ? 'Sửa QR Code' : 'Thêm QR Code'}
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {editingQR ? 'Sửa thông tin QR Code' : 'Thêm QR Code nhận tiền'}
                   </h2>
                   <button
                     onClick={handleCloseModal}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white cursor-pointer transition-colors"
                   >
                     ✕
                   </button>
@@ -274,7 +300,7 @@ export default function BankQRManagement() {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-xs font-bold text-gray-450 dark:text-gray-550 uppercase tracking-wider mb-1">
                       Tên ngân hàng *
                     </label>
                     <input
@@ -283,13 +309,14 @@ export default function BankQRManagement() {
                       onChange={(e) =>
                         setFormData({ ...formData, bankName: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-900 dark:text-white"
+                      placeholder="Ví dụ: Vietcombank, MB Bank..."
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-xs font-bold text-gray-450 dark:text-gray-550 uppercase tracking-wider mb-1">
                       Số tài khoản *
                     </label>
                     <input
@@ -298,13 +325,14 @@ export default function BankQRManagement() {
                       onChange={(e) =>
                         setFormData({ ...formData, accountNumber: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-900 dark:text-white"
+                      placeholder="Nhập số tài khoản"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-xs font-bold text-gray-450 dark:text-gray-550 uppercase tracking-wider mb-1">
                       Tên chủ tài khoản *
                     </label>
                     <input
@@ -313,13 +341,14 @@ export default function BankQRManagement() {
                       onChange={(e) =>
                         setFormData({ ...formData, accountHolder: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-900 dark:text-white uppercase"
+                      placeholder="VIET A NGUYEN"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-xs font-bold text-gray-450 dark:text-gray-550 uppercase tracking-wider mb-1">
                       Ảnh QR Code {!editingQR && '*'}
                     </label>
                     <input
@@ -328,43 +357,43 @@ export default function BankQRManagement() {
                       onChange={handleFileChange}
                       className="block w-full text-sm text-gray-500 dark:text-gray-400
                         file:mr-4 file:py-2 file:px-4
-                        file:rounded-lg file:border-0
-                        file:text-sm file:font-semibold
-                        file:bg-orange-50 file:text-orange-700
-                        hover:file:bg-orange-100
-                        dark:file:bg-orange-900/20 dark:file:text-orange-300"
+                        file:rounded-xl file:border-0
+                        file:text-xs file:font-bold
+                        file:bg-indigo-50 file:text-indigo-650
+                        hover:file:bg-indigo-100
+                        dark:file:bg-indigo-950/30 dark:file:text-indigo-400 cursor-pointer"
                       required={!editingQR}
                     />
                     {formData.qrCodeImage && (
                       <img
                         src={URL.createObjectURL(formData.qrCodeImage)}
                         alt="Preview"
-                        className="mt-2 w-full rounded border border-gray-300 dark:border-gray-600"
+                        className="mt-3 w-full max-h-48 object-contain rounded-2xl border border-gray-200 dark:border-gray-700"
                       />
                     )}
                     {editingQR && !formData.qrCodeImage && (
                       <img
                         src={editingQR.qrCodeImage}
                         alt="Current QR"
-                        className="mt-2 w-full rounded border border-gray-300 dark:border-gray-600"
+                        className="mt-3 w-full max-h-48 object-contain rounded-2xl border border-gray-200 dark:border-gray-700"
                       />
                     )}
                   </div>
 
-                  <div className="flex space-x-2 pt-4">
+                  <div className="flex space-x-3 pt-4">
                     <button
                       type="button"
                       onClick={handleCloseModal}
-                      className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 py-2 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
+                      className="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 py-2.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-bold text-sm cursor-pointer"
                     >
                       Hủy
                     </button>
                     <button
                       type="submit"
                       disabled={uploading}
-                      className="flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white py-2.5 rounded-xl font-bold text-sm transition-colors cursor-pointer shadow-md"
                     >
-                      {uploading ? 'Đang lưu...' : editingQR ? 'Cập nhật' : 'Thêm'}
+                      {uploading ? 'Đang lưu...' : editingQR ? 'Cập nhật' : 'Thêm tài khoản'}
                     </button>
                   </div>
                 </form>

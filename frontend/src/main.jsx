@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { store } from './store/store'
 import ErrorBoundary from './components/ErrorBoundary'
+import { ConfirmProvider } from './components/ConfirmModal'
 import './index.css'
 
 // Debug: Log API URL
@@ -23,7 +24,9 @@ if (!rootElement) {
       <ErrorBoundary>
         <Provider store={store}>
           <BrowserRouter>
-            <App />
+            <ConfirmProvider>
+              <App />
+            </ConfirmProvider>
           </BrowserRouter>
         </Provider>
       </ErrorBoundary>

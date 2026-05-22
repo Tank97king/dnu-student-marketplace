@@ -9,6 +9,7 @@
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "normalize-category": "node scripts/normalizeProductCategory.js",
+    "normalize-condition": "node scripts/normalizeProductCondition.js",
     "index-knowledge": "node scripts/indexKnowledge.js"
   },
   "keywords": [

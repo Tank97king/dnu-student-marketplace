@@ -499,7 +499,9 @@ exports.login = async (req, res) => {
         isSuperAdmin: user.isSuperAdmin || false,
         followers: user.followers || [],
         following: user.following || [],
-        rating: user.rating || { average: 0, count: 0 }
+        rating: user.rating || { average: 0, count: 0 },
+        isShipper: user.isShipper || false,
+        shipperStatus: user.shipperStatus || 'none'
       }
     });
   } catch (error) {

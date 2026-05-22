@@ -3,6 +3,51 @@ const Product = require('../models/Product');
 const Order = require('../models/Order');
 const { createAndEmitNotification } = require('../utils/notifications');
 
+const getOrCreatePaymentForOrder = async (order) => {
+  const Payment = require('../models/Payment');
+  const User = require('../models/User');
+  let payment = await Payment.findOne({ orderId: order._id });
+  if (!payment) {
+    const buyer = await User.findById(order.buyerId);
+    const generateTransactionCode = require('../utils/generateTransactionCode');
+    
+    // Generate transaction code
+    let transactionCode;
+    let isUnique = false;
+    let attempts = 0;
+    while (!isUnique && attempts < 10) {
+      transactionCode = generateTransactionCode();
+      const existing = await Payment.findOne({ transactionCode });
+      if (!existing) isUnique = true;
+      attempts++;
+    }
+    
+    const PLATFORM_FEE_PERCENT = 5;
+    const VAT_PERCENT = 10;
+    const amount = order.finalPrice;
+    const platformFee = Math.round(amount * PLATFORM_FEE_PERCENT / 100);
+    const vatAmount = Math.round(platformFee * VAT_PERCENT / 100);
+    const sellerAmount = amount - platformFee - vatAmount;
+    
+    payment = await Payment.create({
+      orderId: order._id,
+      buyerId: order.buyerId,
+      buyerName: buyer?.name || 'Người mua',
+      buyerPhone: buyer?.phone || '',
+      amount,
+      platformFeePercent: PLATFORM_FEE_PERCENT,
+      vatPercent: VAT_PERCENT,
+      platformFee,
+      vatAmount,
+      sellerAmount,
+      transactionCode,
+      shippingAddress: order.shippingAddress,
+      status: 'pending'
+    });
+  }
+  return payment;
+};
+
 // @desc    Create offer
 // @route   POST /api/offers
 // @access  Private
@@ -174,6 +219,9 @@ exports.acceptOffer = async (req, res) => {
       status: 'Sold'
     });
 
+    // Automatically create payment record so it is visible to admin/seller immediately
+    await getOrCreatePaymentForOrder(order);
+
     // Create notification for buyer
     const io = req.app.get('io');
     await createAndEmitNotification(
@@ -184,6 +232,20 @@ exports.acceptOffer = async (req, res) => {
       `Người bán đã chấp nhận đề nghị giá ${offer.offerPrice.toLocaleString('vi-VN')} ₫ cho sản phẩm "${offer.productId.title}"`,
       { offerId: offer._id, orderId: order._id, productId: offer.productId._id, productName: offer.productId.title }
     );
+
+    // Notify all admins about new order needing review
+    const User = require('../models/User');
+    const admins = await User.find({ isAdmin: true, isActive: true });
+    for (const admin of admins) {
+      await createAndEmitNotification(
+        io,
+        admin._id,
+        'new_order',
+        'Có đơn hàng mới cần xét duyệt',
+        `Đơn hàng từ đề nghị giá: "${offer.productId.title}" - ${offer.offerPrice.toLocaleString('vi-VN')} ₫. Vui lòng kiểm tra và phê duyệt.`,
+        { orderId: order._id, productId: offer.productId._id, productName: offer.productId.title }
+      );
+    }
 
     res.json({
       success: true,
@@ -389,6 +451,20 @@ exports.acceptCounterOffer = async (req, res) => {
       `${req.user.name} đã chấp nhận đề nghị giá ${offer.counterOfferPrice.toLocaleString('vi-VN')} ₫ cho sản phẩm "${offer.productId.title}"`,
       { offerId: offer._id, orderId: order._id, productId: offer.productId._id, productName: offer.productId.title }
     );
+
+    // Notify all admins about new order needing review
+    const User = require('../models/User');
+    const admins = await User.find({ isAdmin: true, isActive: true });
+    for (const admin of admins) {
+      await createAndEmitNotification(
+        io,
+        admin._id,
+        'new_order',
+        'Có đơn hàng mới cần xét duyệt',
+        `Đơn hàng từ đề nghị giá: "${offer.productId.title}" - ${offer.counterOfferPrice.toLocaleString('vi-VN')} ₫. Vui lòng kiểm tra và phê duyệt.`,
+        { orderId: order._id, productId: offer.productId._id, productName: offer.productId.title }
+      );
+    }
 
     res.json({
       success: true,

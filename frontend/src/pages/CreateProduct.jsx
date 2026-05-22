@@ -9,6 +9,7 @@ export default function CreateProduct() {
   const navigate = useNavigate()
   const { loading } = useSelector(state => state.product)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [formData, setFormData] = useState({
     title: '',
@@ -111,9 +112,10 @@ export default function CreateProduct() {
     setImageError('')
     const files = Array.from(e.target.files)
 
-    // Kiểm tra số lượng ảnh
-    if (files.length > 5) {
-      setImageError('Tối đa 5 ảnh cho mỗi sản phẩm')
+    // Kiểm tra tổng số lượng ảnh sau khi thêm mới
+    const currentCount = formData.images.length
+    if (currentCount + files.length > 5) {
+      setImageError(`Tối đa 5 ảnh cho mỗi sản phẩm. Hiện đã có ${currentCount} ảnh, bạn chỉ có thể thêm ${5 - currentCount} ảnh nữa.`)
       e.target.value = '' // Reset input
       return
     }
@@ -143,7 +145,43 @@ export default function CreateProduct() {
       return
     }
 
-    setFormData({ ...formData, images: files })
+    setFormData({ ...formData, images: [...formData.images, ...files] })
+    e.target.value = '' // Reset input để có thể chọn lại cùng file nếu muốn
+  }
+
+  const handleRemoveImage = (indexToRemove) => {
+    setFormData({
+      ...formData,
+      images: formData.images.filter((_, index) => index !== indexToRemove)
+    })
+  }
+
+  const handleMoveImage = (index, direction) => {
+    const newImages = [...formData.images]
+    const targetIndex = index + direction
+    if (targetIndex < 0 || targetIndex >= newImages.length) return
+    
+    // Swap items
+    const temp = newImages[index]
+    newImages[index] = newImages[targetIndex]
+    newImages[targetIndex] = temp
+
+    setFormData({
+      ...formData,
+      images: newImages
+    })
+  }
+
+  const handleSetCoverImage = (index) => {
+    if (index === 0) return
+    const newImages = [...formData.images]
+    const selectedCover = newImages.splice(index, 1)[0]
+    newImages.unshift(selectedCover)
+
+    setFormData({
+      ...formData,
+      images: newImages
+    })
   }
 
   const handleSubmit = async (e) => {
@@ -159,16 +197,20 @@ export default function CreateProduct() {
       return
     }
 
-    // Thêm subcategory vào tags nếu có
-    let finalTags = formData.tags
+    setIsSubmitting(true)
+
+    // Thêm subcategory vào tags nếu có, lọc trùng lặp và giới hạn 10 tag
+    let tagArray = formData.tags 
+      ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
+      : []
+
     if (formData.subcategory) {
-      const subcategoryTags = formData.subcategory.split(' ')
-      if (finalTags) {
-        finalTags = `${finalTags}, ${subcategoryTags.join(', ')}`
-      } else {
-        finalTags = subcategoryTags.join(', ')
-      }
+      const subcategoryTags = formData.subcategory.split(' ').map(tag => tag.trim()).filter(tag => tag.length > 0)
+      tagArray = [...tagArray, ...subcategoryTags]
     }
+
+    const uniqueTags = Array.from(new Set(tagArray))
+    const finalTags = uniqueTags.slice(0, 10).join(', ')
 
     // Tạo submitData và loại bỏ subcategory vì backend không chấp nhận
     const { subcategory, ...dataToSubmit } = formData
@@ -177,9 +219,13 @@ export default function CreateProduct() {
       tags: finalTags
     }
 
-    const result = await dispatch(createProduct(submitData))
-    if (result.type.includes('fulfilled')) {
+    try {
+      await dispatch(createProduct(submitData)).unwrap()
       setShowSuccessModal(true)
+    } catch (err) {
+      alert(err || 'Đăng sản phẩm thất bại')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -383,23 +429,92 @@ export default function CreateProduct() {
             <p className="mt-2 text-sm text-red-600 dark:text-red-400">{imageError}</p>
           )}
           {formData.images.length > 0 && !imageError && (
-            <div className="mt-2">
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                Đã chọn {formData.images.length}/5 hình ảnh
+            <div className="mt-4">
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Đã chọn {formData.images.length}/5 hình ảnh (Ảnh đầu tiên sẽ là ảnh đại diện hiển thị chính)
               </p>
-              <div className="grid grid-cols-5 gap-2 mt-2">
-                {formData.images.map((file, index) => (
-                  <div key={index} className="relative">
-                    <img
-                      src={URL.createObjectURL(file)}
-                      alt={`Preview ${index + 1}`}
-                      className="w-full h-20 object-cover rounded border"
-                    />
-                    <span className="absolute top-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
-                      {(file.size / 1024 / 1024).toFixed(2)}MB
-                    </span>
-                  </div>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-2">
+                {formData.images.map((file, index) => {
+                  const isCover = index === 0;
+                  const objectUrl = URL.createObjectURL(file);
+                  return (
+                    <div 
+                      key={index} 
+                      className={`relative group rounded-lg overflow-hidden border-2 transition-all duration-200 aspect-square ${
+                        isCover 
+                          ? 'border-orange-500 shadow-md ring-2 ring-orange-500/20' 
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <img
+                        src={objectUrl}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      
+                      {/* Badge "Ảnh chính" */}
+                      {isCover && (
+                        <div className="absolute top-1 left-1 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
+                          ★ Ảnh chính
+                        </div>
+                      )}
+                      
+                      {/* Kích thước ảnh */}
+                      <span className="absolute bottom-1 right-1 bg-black bg-opacity-65 text-white text-[9px] px-1.5 py-0.5 rounded">
+                        {(file.size / 1024 / 1024).toFixed(2)}MB
+                      </span>
+
+                      {/* Overlay Controls */}
+                      <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex flex-col justify-between p-2">
+                        {/* Top controls (Delete & Set Cover) */}
+                        <div className="flex justify-between items-start">
+                          {!isCover ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSetCoverImage(index)}
+                              title="Đặt làm ảnh chính"
+                              className="bg-white/95 text-orange-600 hover:bg-orange-500 hover:text-white rounded-full px-2 py-0.5 shadow transition-colors text-[10px] font-bold"
+                            >
+                              ★ Lên đầu
+                            </button>
+                          ) : (
+                            <div />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(index)}
+                            title="Xóa ảnh này"
+                            className="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold shadow hover:bg-red-700 transition-colors ml-auto"
+                          >
+                            ×
+                          </button>
+                        </div>
+
+                        {/* Bottom controls (Move Left / Right) */}
+                        <div className="flex justify-center gap-2">
+                          <button
+                            type="button"
+                            disabled={index === 0}
+                            onClick={() => handleMoveImage(index, -1)}
+                            className="bg-black/60 hover:bg-black/80 disabled:opacity-30 disabled:hover:bg-black/60 text-white rounded w-7 h-7 flex items-center justify-center text-sm shadow transition-colors"
+                            title="Di chuyển sang trái"
+                          >
+                            ←
+                          </button>
+                          <button
+                            type="button"
+                            disabled={index === formData.images.length - 1}
+                            onClick={() => handleMoveImage(index, 1)}
+                            className="bg-black/60 hover:bg-black/80 disabled:opacity-30 disabled:hover:bg-black/60 text-white rounded w-7 h-7 flex items-center justify-center text-sm shadow transition-colors"
+                            title="Di chuyển sang phải"
+                          >
+                            →
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -410,10 +525,10 @@ export default function CreateProduct() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || isSubmitting}
           className="w-full bg-orange-500 dark:bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-600 dark:hover:bg-orange-700 disabled:opacity-50 transition-colors"
         >
-          {loading ? 'Đang đăng...' : 'Đăng sản phẩm'}
+          {isSubmitting || loading ? 'Đang đăng...' : 'Đăng sản phẩm'}
         </button>
       </form>
 
@@ -461,6 +576,35 @@ export default function CreateProduct() {
               >
                 Đăng tiếp
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay */}
+      {isSubmitting && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-50 transition-all duration-300">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-4 flex flex-col items-center text-center animate-pulse">
+            {/* Spinning Circle */}
+            <div className="relative w-20 h-20 mb-6">
+              <div className="absolute inset-0 rounded-full border-4 border-gray-200 dark:border-gray-700"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-orange-500 border-t-transparent animate-spin"></div>
+              {/* Icon upload inside */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <svg className="w-8 h-8 text-orange-500 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+              </div>
+            </div>
+            
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+              Đang đăng sản phẩm
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Vui lòng không đóng trang web. Chúng tôi đang tải hình ảnh lên hệ thống và kiểm duyệt nội dung...
+            </p>
+            <div className="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-orange-500 h-full rounded-full animate-pulse" style={{ width: '80%' }}></div>
             </div>
           </div>
         </div>

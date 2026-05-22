@@ -6,6 +6,64 @@ const User = require('../models/User');
 const { generateContent } = require('../utils/gemini');
 const { semanticSearch } = require('../utils/embeddingService');
 
+function normalizeText(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // bỏ dấu tiếng Việt
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenizeQuery(q) {
+  const t = normalizeText(q);
+  const tokens = t.split(' ').filter(Boolean);
+  // bỏ token quá ngắn để giảm nhiễu (vd: "a", "i")
+  return tokens.filter(x => x.length >= 2);
+}
+
+function lexicalScore(queryTokens, product) {
+  if (!queryTokens || queryTokens.length === 0) return 0;
+  const hay = normalizeText(
+    [
+      product?.title,
+      product?.category,
+      Array.isArray(product?.tags) ? product.tags.join(' ') : product?.tags,
+      product?.description
+    ].filter(Boolean).join(' ')
+  );
+
+  const words = hay.split(' ').filter(Boolean);
+  const wordSet = new Set(words);
+
+  let hit = 0;
+  for (const tok of queryTokens) {
+    // token ngắn (vd "xe") chỉ tính khi match đúng 1 từ, tránh match kiểu "xep", "xach", ...
+    if (tok.length <= 2) {
+      if (wordSet.has(tok)) hit++;
+      continue;
+    }
+
+    // token dài hơn: match theo từ hoặc prefix (vd "laptop" vs "laptopgaming")
+    if (wordSet.has(tok)) {
+      hit++;
+      continue;
+    }
+    if (words.some(w => w.startsWith(tok))) {
+      hit++;
+    }
+  }
+
+  // bonus nếu match cụm từ (vd "xe dap") như một phrase
+  const phrase = queryTokens.join(' ');
+  const phraseHit = phrase.length >= 5 && hay.includes(phrase) ? 1 : 0;
+
+  // tỉ lệ token match (0..1) + phrase bonus (tối đa +0.25)
+  const base = hit / queryTokens.length;
+  return Math.min(1, base + phraseHit * 0.25);
+}
+
 
 // @desc    Get search autocomplete suggestions
 // @route   GET /api/search/autocomplete
@@ -383,10 +441,46 @@ exports.searchSemantic = async (req, res) => {
       .populate('userId', 'name avatar')
       .select('-__v');
 
-    // 4. Sắp xếp theo aiScore (cosine similarity ×100 = %)
-    const sorted = products
-      .map(p => ({ ...p.toObject(), aiScore: Math.round((scoreMap[p._id.toString()] || 0) * 100) }))
-      .sort((a, b) => b.aiScore - a.aiScore);
+    // 4. Re-rank + lọc:
+    // - Embedding score thường "nén" nên nhiều kết quả không liên quan vẫn >0.6
+    // - Kết hợp thêm điểm lexical (từ khóa xuất hiện trong title/tags/desc) để kéo đúng sản phẩm lên
+    // - Lọc theo ngưỡng tương đối so với top-1 để loại nhiễu
+    const qTokens = tokenizeQuery(queryText);
+
+    const rescored = products.map(p => {
+      const raw = Number(scoreMap[p._id.toString()] || 0); // 0..1
+      const lex = lexicalScore(qTokens, p);
+      // trọng số: embedding chủ đạo, lexical giúp loại nhiễu với query "cụ thể"
+      const final = Math.max(0, Math.min(1, raw * 0.78 + lex * 0.22));
+      return {
+        ...p.toObject(),
+        aiScore: Math.round(final * 100),
+        _aiRaw: raw,
+        _aiLex: lex
+      };
+    });
+
+    const top = rescored.reduce((m, x) => Math.max(m, x._aiRaw), 0);
+    const minAbs = 0.62; // chặn bớt kết quả "lụm" không liên quan
+    const minRel = Math.max(minAbs, top - 0.08);
+
+    const sorted = rescored
+      .filter(x => {
+        // query rất ngắn (vd "xe dap") → cần lexical match rõ ràng để tránh nhiễu
+        const isShortQuery = qTokens.length <= 2 && qTokens.every(t => t.length <= 3);
+        if (isShortQuery) {
+          // Nếu match từ khoá rất mạnh (vd title có đúng "xe dap") thì nới raw để không mất kết quả đúng
+          const strongLex = x._aiLex >= 0.75;
+          if (strongLex) {
+            return x._aiRaw >= Math.max(0.55, top - 0.12);
+          }
+          return (x._aiRaw >= Math.max(minRel, 0.7) && x._aiLex >= 0.34) || x._aiRaw >= 0.82;
+        }
+        return x._aiRaw >= minRel || x._aiLex >= 0.5;
+      })
+      .sort((a, b) => b.aiScore - a.aiScore)
+      .slice(0, 30)
+      .map(({ _aiRaw, _aiLex, ...rest }) => rest);
 
     return res.json({
       success: true,

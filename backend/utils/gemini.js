@@ -8,8 +8,14 @@ let genAI = null;
 let currentModelName = null;
 let model = null;
 
-// Thứ tự ưu tiên: gemini-pro thường có quota free ổn, rồi mới tới model mới (tránh 429/404)
-const MODEL_NAMES = ['gemini-pro', 'gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.0-pro'];
+// Thứ tự ưu tiên: Ưu tiên model hoạt động tốt nhất gemini-2.5-flash, tiếp đến các model khác để tránh 404/429
+const MODEL_NAMES = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
+  'gemini-2.5-pro'
+];
 
 function getModel() {
   const apiKey = process.env.GEMINI_API_KEY;

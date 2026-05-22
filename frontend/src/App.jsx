@@ -36,6 +36,7 @@ import PostDetailPage from './pages/PostDetail'
 import Explore from './pages/Explore'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
+import ShipperDashboard from './pages/ShipperDashboard'
 
 function App() {
   console.log('✅ App component rendered')
@@ -79,6 +80,7 @@ function App() {
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/my-promotions" element={<MyPromotions />} />
           <Route path="/notifications/settings" element={<NotificationSettings />} />
+          <Route path="/shipper" element={<ShipperDashboard />} />
         </Route>
 
         {/* Admin Routes */}

@@ -102,18 +102,18 @@ const Chatbot = () => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-all duration-300 z-50 hover:scale-110"
+          className="fixed bottom-6 right-6 bg-white dark:bg-gray-800 rounded-full p-1 shadow-2xl shadow-blue-500/30 transition-all duration-300 z-50 hover:scale-110 border-2 border-blue-100 dark:border-gray-700 group flex items-center justify-center"
           aria-label="Mở chatbot AI"
           title="Chat với AI"
           id="chatbot-open-btn"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            />
-          </svg>
+          <img 
+            src="/avatars/chatbot_avatar.png" 
+            alt="DNU AI" 
+            className="w-14 h-14 rounded-full object-cover transition-transform duration-300 group-hover:rotate-12"
+          />
           {/* Badge RAG AI */}
-          <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 bg-gradient-to-r from-green-400 to-green-500 text-white text-[10px] font-black rounded-full w-6 h-6 flex items-center justify-center border-2 border-white dark:border-gray-800 shadow-sm">
             AI
           </span>
         </button>
@@ -129,16 +129,15 @@ const Chatbot = () => {
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-t-xl flex justify-between items-center flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center text-lg">
-                  🤖
-                </div>
+                <img 
+                  src="/avatars/chatbot_avatar.png" 
+                  alt="DNU Bot" 
+                  className="w-9 h-9 rounded-full object-cover border-2 border-white/30"
+                />
                 <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-blue-700"></span>
               </div>
               <div>
                 <h3 className="font-semibold text-sm leading-tight">Trợ lý AI</h3>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-blue-100">Hỗ trợ bởi RAG + Gemini</span>
-                </div>
               </div>
             </div>
             <div className="flex gap-1">
@@ -174,9 +173,11 @@ const Chatbot = () => {
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {/* Avatar cho bot */}
                 {msg.role === 'assistant' && (
-                  <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-sm mr-2 mt-1 flex-shrink-0">
-                    🤖
-                  </div>
+                  <img 
+                    src="/avatars/chatbot_avatar.png" 
+                    alt="DNU Bot" 
+                    className="w-7 h-7 rounded-full object-cover mr-2 mt-1 flex-shrink-0 border border-gray-200 dark:border-gray-700 shadow-sm"
+                  />
                 )}
 
                 <div className={`max-w-[80%] rounded-2xl px-3 py-2.5 ${msg.role === 'user'
@@ -236,9 +237,11 @@ const Chatbot = () => {
             {/* Loading animation */}
             {loading && (
               <div className="flex justify-start items-end gap-2">
-                <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-sm flex-shrink-0">
-                  🤖
-                </div>
+                <img 
+                  src="/avatars/chatbot_avatar.png" 
+                  alt="DNU Bot" 
+                  className="w-7 h-7 rounded-full object-cover flex-shrink-0 border border-gray-200 dark:border-gray-700 shadow-sm"
+                />
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
                   <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
@@ -297,9 +300,6 @@ const Chatbot = () => {
                 </svg>
               </button>
             </div>
-            <p className="text-center text-xs text-gray-400 mt-1.5">
-              RAG AI · Tìm kiếm ngữ nghĩa · Powered by Gemini
-            </p>
           </form>
         </div>
       )}

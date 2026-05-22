@@ -62,8 +62,40 @@ exports.createPost = async (req, res) => {
     const hashtags = extractHashtags(caption);
     const mentions = await extractMentions(caption);
     
-    // Handle image uploads
+    // Fetch product if productId is provided to populate default values and copy images
     let images = [];
+    let finalPrice = price;
+    let finalCategory = category;
+    let finalCondition = condition;
+    let finalLocation = location;
+
+    if (productId) {
+      try {
+        const productObj = await Product.findById(productId);
+        if (productObj) {
+          images = productObj.images || [];
+          if (!finalPrice) finalPrice = productObj.price;
+          if (!finalLocation) finalLocation = productObj.location;
+          if (!finalCondition) finalCondition = productObj.condition;
+          if (!finalCategory) {
+            const categoryMapping = {
+              'Sách': 'Books',
+              'Điện tử': 'Electronics',
+              'Nội thất': 'Furniture',
+              'Quần áo': 'Clothing',
+              'Văn phòng phẩm': 'Stationery',
+              'Thể thao': 'Sports',
+              'Khác': 'Other'
+            };
+            finalCategory = categoryMapping[productObj.category] || 'Other';
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching product for sharing:', err);
+      }
+    }
+
+    // Handle image uploads
     if (req.files && req.files.length > 0) {
       if (req.files.length > 10) {
         return res.status(400).json({
@@ -85,7 +117,7 @@ exports.createPost = async (req, res) => {
           message: 'Lỗi khi upload hình ảnh: ' + uploadError.message
         });
       }
-    } else {
+    } else if (images.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Vui lòng upload ít nhất 1 hình ảnh'
@@ -99,12 +131,12 @@ exports.createPost = async (req, res) => {
       caption: caption || '',
       hashtags,
       mentions,
-      price: price ? parseFloat(price) : undefined,
-      category,
-      condition,
-      location,
+      price: finalPrice ? parseFloat(finalPrice) : undefined,
+      category: finalCategory,
+      condition: finalCondition,
+      location: finalLocation,
       productId: productId || null,
-      isApproved: req.user.isAdmin || req.user.isSuperAdmin ? true : false
+      isApproved: true
     };
     
     const post = await Post.create(postData);

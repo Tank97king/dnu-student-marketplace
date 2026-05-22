@@ -120,6 +120,33 @@ const userSchema = new mongoose.Schema({
   postCount: {
     type: Number,
     default: 0
+  },
+  // --- Shipper ---
+  isShipper: {
+    type: Boolean,
+    default: false
+  },
+  shipperStatus: {
+    type: String,
+    enum: ['none', 'pending', 'approved', 'rejected', 'suspended'],
+    default: 'none'
+  },
+  shipperInfo: {
+    idCard: { type: String, trim: true },
+    vehicleType: {
+      type: String,
+      enum: ['motorbike', 'bicycle', 'walking', 'car'],
+      default: 'motorbike'
+    },
+    operatingArea: { type: String, trim: true },
+    bio: { type: String, trim: true },
+    appliedAt: { type: Date },
+    bankAccount: {
+      bankName: { type: String, trim: true },
+      accountNumber: { type: String, trim: true },
+      accountHolder: { type: String, trim: true },
+      qrCodeImage: { type: String }
+    }
   }
 }, {
   timestamps: true
@@ -128,9 +155,14 @@ const userSchema = new mongoose.Schema({
 // Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
-    next();
+    return next();
   }
-  this.password = await bcrypt.hash(this.password, 10);
+  try {
+    this.password = await bcrypt.hash(this.password, 10);
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Compare password method

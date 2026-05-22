@@ -8,7 +8,8 @@ const {
   confirmPayment,
   rejectPayment,
   getAllPayments,
-  getMyPayments
+  getMyPayments,
+  confirmCODReceived
 } = require('../controllers/paymentController');
 const { protect, authorize } = require('../middleware/auth');
 const { paymentLimiter, uploadLimiter } = require('../middleware/rateLimiter');
@@ -43,5 +44,7 @@ router.put('/:id/confirm', protect, authorize(), validatePaymentAction, confirmP
 // Reject payment (Admin) - với validation
 router.put('/:id/reject', protect, authorize(), validatePaymentAction, rejectPayment);
 
-module.exports = router;
+// Confirm COD received (Admin)
+router.put('/:id/confirm-cod', protect, authorize(), confirmCODReceived);
 
+module.exports = router;

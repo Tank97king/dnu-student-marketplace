@@ -1,14 +1,54 @@
-import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { Link, useNavigate } from 'react-router-dom';
+import { createPost } from '../store/slices/postSlice';
 import api from '../utils/api';
 
 export default function ShareProduct({ productId, productTitle }) {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { user } = useSelector(state => state.auth);
+  
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
+  const [shareCaption, setShareCaption] = useState(
+    productTitle ? `Mình muốn chia sẻ sản phẩm "${productTitle}". Sản phẩm chất lượng giá tốt, cả nhà vào tham khảo nhé!` : ''
+  );
+
+  useEffect(() => {
+    if (productTitle) {
+      setShareCaption(`Mình muốn chia sẻ sản phẩm "${productTitle}". Sản phẩm chất lượng giá tốt, cả nhà vào tham khảo nhé!`);
+    }
+  }, [productTitle]);
 
   const handleShare = () => {
     setShowShareModal(true);
+  };
+
+  const handleFeedShare = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      alert('Vui lòng đăng nhập để chia sẻ lên Feed');
+      return;
+    }
+    setSharing(true);
+    try {
+      await dispatch(createPost({
+        productId,
+        caption: shareCaption
+      })).unwrap();
+      setShareSuccess(true);
+      setTimeout(() => {
+        setShareSuccess(false);
+        setShowShareModal(false);
+      }, 2000);
+    } catch (error) {
+      alert(error || 'Chia sẻ lên Feed thất bại');
+    } finally {
+      setSharing(false);
+    }
   };
 
   const handleCopyLink = async () => {
@@ -69,6 +109,49 @@ export default function ShareProduct({ productId, productTitle }) {
               >
                 ✕
               </button>
+            </div>
+
+            {/* Feed Share (DNUMarket Social Network) */}
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
+              <h4 className="text-sm font-bold text-blue-900 dark:text-blue-400 mb-2 flex items-center gap-1.5">
+                💬 Chia sẻ lên Feed của DNUMarket
+              </h4>
+              {!user ? (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Vui lòng <Link to="/login" className="text-primary-600 dark:text-primary-400 underline font-medium">đăng nhập</Link> để chia sẻ lên mạng xã hội của web.
+                </p>
+              ) : shareSuccess ? (
+                <div className="text-center py-2 text-green-600 dark:text-green-400 font-semibold text-sm flex items-center justify-center gap-1.5 animate-pulse">
+                  <span>✓ Đã đăng bài chia sẻ thành công!</span>
+                </div>
+              ) : (
+                <form onSubmit={handleFeedShare} className="space-y-3">
+                  <textarea
+                    value={shareCaption}
+                    onChange={(e) => setShareCaption(e.target.value)}
+                    placeholder="Viết cảm nghĩ về sản phẩm..."
+                    className="w-full px-3 py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white resize-none focus:ring-1 focus:ring-primary-500 focus:border-transparent"
+                    rows="3"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sharing}
+                    className="w-full py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {sharing ? (
+                      <>
+                        <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Đang chia sẻ...
+                      </>
+                    ) : (
+                      'Đăng lên Feed'
+                    )}
+                  </button>
+                </form>
+              )}
             </div>
 
             {/* Copy Link */}

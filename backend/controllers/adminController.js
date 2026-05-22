@@ -213,7 +213,10 @@ exports.approveProduct = async (req, res) => {
 // @access  Admin
 exports.getReports = async (req, res) => {
   try {
-    const products = await Product.find({ 'reports.0': { $exists: true } })
+    const products = await Product.find({ 
+      'reports.0': { $exists: true },
+      status: 'Available'
+    })
       .populate('userId', 'name email')
       .sort({ createdAt: -1 });
 
@@ -230,6 +233,35 @@ exports.getReports = async (req, res) => {
   }
 };
 
+// @desc    Dismiss reports
+// @route   PUT /api/admin/products/:id/dismiss-reports
+// @access  Admin
+exports.dismissReports = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy sản phẩm'
+      });
+    }
+
+    product.reports = [];
+    await product.save();
+
+    res.json({
+      success: true,
+      message: 'Đã bỏ qua tất cả báo cáo vi phạm của sản phẩm này'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // @desc    Get dashboard stats
 // @route   GET /api/admin/stats
 // @access  Admin
@@ -237,10 +269,10 @@ exports.getStats = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
     const activeUsers = await User.countDocuments({ isActive: true });
-    const totalProducts = await Product.countDocuments();
+    const totalProducts = await Product.countDocuments({ status: { $ne: 'Deleted' } });
     const availableProducts = await Product.countDocuments({ status: 'Available', isApproved: true });
     const soldProducts = await Product.countDocuments({ status: 'Sold' });
-    const pendingProducts = await Product.countDocuments({ isApproved: false });
+    const pendingProducts = await Product.countDocuments({ isApproved: false, status: 'Available' });
     
     // Payment stats
     const totalPayments = await Payment.countDocuments();

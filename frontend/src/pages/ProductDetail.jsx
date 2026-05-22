@@ -10,6 +10,8 @@ import BuyNowModal from '../components/BuyNowModal'
 import ShareProduct from '../components/ShareProduct'
 import ProductRecommendations from '../components/ProductRecommendations'
 import { addToCompare } from '../pages/CompareProducts'
+import Toast from '../components/Toast'
+import ReportModal from '../components/ReportModal'
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -25,6 +27,26 @@ export default function ProductDetail() {
   const [imageZoom, setImageZoom] = useState(1)
   const [showOfferModal, setShowOfferModal] = useState(false)
   const [showBuyNowModal, setShowBuyNowModal] = useState(false)
+  const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState('')
+  const [toastType, setToastType] = useState('success')
+  const [toastTitle, setToastTitle] = useState('')
+  const [showReportModal, setShowReportModal] = useState(false)
+
+  const showToastMsg = (message, type = 'success', title = '') => {
+    setToastTitle(title)
+    setToastType(type)
+    setToastMessage(message)
+    setShowToast(true)
+  }
+
+  const handleReportClick = () => {
+    if (!user) {
+      showToastMsg('Vui lòng đăng nhập để báo cáo sản phẩm vi phạm.', 'warning', 'Yêu cầu đăng nhập')
+      return
+    }
+    setShowReportModal(true)
+  }
 
   useEffect(() => {
     dispatch(fetchProduct(id))
@@ -91,13 +113,13 @@ export default function ProductDetail() {
 
   const handleChat = () => {
     if (!user) {
-      alert('Vui lòng đăng nhập để liên hệ người bán')
+      showToastMsg('Vui lòng đăng nhập để liên hệ người bán', 'warning', 'Yêu cầu đăng nhập')
       navigate('/login')
       return
     }
     
     if (user.id === product.userId._id) {
-      alert('Bạn không thể liên hệ với chính mình')
+      showToastMsg('Bạn không thể liên hệ với chính mình', 'warning', 'Cảnh báo')
       return
     }
     
@@ -107,7 +129,7 @@ export default function ProductDetail() {
 
   const handleToggleFavorite = async () => {
     if (!user) {
-      alert('Vui lòng đăng nhập để lưu sản phẩm')
+      showToastMsg('Vui lòng đăng nhập để lưu sản phẩm', 'warning', 'Yêu cầu đăng nhập')
       navigate('/login')
       return
     }
@@ -122,7 +144,7 @@ export default function ProductDetail() {
     } catch (error) {
       console.error('Error toggling favorite:', error)
       const errorMessage = typeof error === 'string' ? error : error?.message || 'Không thể cập nhật yêu thích'
-      alert(errorMessage)
+      showToastMsg(errorMessage, 'error', 'Lỗi')
     }
   }
 
@@ -409,10 +431,11 @@ export default function ProductDetail() {
                       </button>
                       <button
                         onClick={() => {
-                          if (addToCompare(id)) {
-                            alert('Đã thêm vào danh sách so sánh. Xem tại /compare');
-                            navigate('/compare');
-                          }
+                          const result = addToCompare(id);
+                          setToastTitle(result.success ? 'Đã thêm thành công' : 'Không thể thêm');
+                          setToastType(result.success ? 'success' : 'warning');
+                          setToastMessage(result.message);
+                          setShowToast(true);
                         }}
                         className="flex-1 px-6 py-3 border-2 border-blue-500/30 dark:border-blue-400/30 text-blue-600 dark:text-blue-400 rounded-2xl font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all flex items-center justify-center gap-2"
                       >
@@ -420,6 +443,16 @@ export default function ProductDetail() {
                       </button>
                       <ShareProduct productId={id} productTitle={product.title} />
                     </div>
+
+                    <button
+                      onClick={handleReportClick}
+                      className="w-full mt-2 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-red-500 hover:text-white bg-transparent hover:bg-red-500 border border-red-200 dark:border-red-900/40 hover:border-red-500 dark:hover:bg-red-900/60 transition-all rounded-xl"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Báo cáo sản phẩm vi phạm
+                    </button>
                   </>
                 ) : (
                   <div className="space-y-3">
@@ -436,9 +469,9 @@ export default function ProductDetail() {
                             try {
                               await api.put(`/products/${id}/sold`);
                               dispatch(fetchProduct(id));
-                              alert('Đã đánh dấu sản phẩm là đã bán');
+                              showToastMsg('Đã đánh dấu sản phẩm là đã bán', 'success', 'Thành công');
                             } catch (error) {
-                              alert('Không thể cập nhật trạng thái');
+                              showToastMsg('Không thể cập nhật trạng thái', 'error', 'Lỗi');
                             }
                           }
                         }}
@@ -452,13 +485,12 @@ export default function ProductDetail() {
                       >
                         Dashboard
                       </Link>
+                      <div className="flex items-center justify-center border-2 border-gray-200 dark:border-gray-700 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+                        <ShareProduct productId={id} productTitle={product.title} />
+                      </div>
                     </div>
                   </div>
                 )}
-                
-                <button className="w-full text-xs font-bold text-red-400 hover:text-red-600 dark:hover:text-red-300 uppercase tracking-widest mt-2 transition-colors">
-                  Báo cáo sản phẩm vi phạm
-                </button>
               </div>
             </div>
             </div>
@@ -634,6 +666,28 @@ export default function ProductDetail() {
           </div>
         </div>
       )}
+
+      <Toast
+        message={toastMessage}
+        title={toastTitle}
+        type={toastType}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+        actionLabel={toastType === 'success' && toastTitle === 'So sánh sản phẩm' ? 'Xem so sánh' : null}
+        onAction={toastType === 'success' && toastTitle === 'So sánh sản phẩm' ? () => navigate('/compare') : null}
+      />
+
+      <ReportModal
+        productId={id}
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        onReportSuccess={(msg) => {
+          setToastTitle('Báo cáo sản phẩm')
+          setToastType('success')
+          setToastMessage(msg)
+          setShowToast(true)
+        }}
+      />
     </div>
   )
 }

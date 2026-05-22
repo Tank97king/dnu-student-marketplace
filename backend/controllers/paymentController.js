@@ -1,5 +1,6 @@
 const Payment = require('../models/Payment');
 const Order = require('../models/Order');
+const Product = require('../models/Product');
 const User = require('../models/User');
 const BankQR = require('../models/BankQR');
 const generateTransactionCode = require('../utils/generateTransactionCode');
@@ -11,7 +12,7 @@ const { createAndEmitNotification } = require('../utils/notifications');
 // @access  Private
 exports.createPayment = async (req, res) => {
   try {
-    const { orderId } = req.body;
+    const { orderId, shippingAddress } = req.body;
     const buyerId = req.user.id;
 
     // Validate order
@@ -42,13 +43,36 @@ exports.createPayment = async (req, res) => {
       });
     }
 
+    // If shippingAddress is provided (e.g., from offer checkout), update it on the order
+    if (shippingAddress) {
+      order.shippingAddress = shippingAddress;
+      await order.save();
+    }
+
     // Check if payment already exists
-    const existingPayment = await Payment.findOne({ orderId });
+    const existingPayment = await Payment.findOne({ orderId })
+      .populate('orderId')
+      .populate('buyerId', 'name avatar');
     if (existingPayment) {
-      return res.status(400).json({
-        success: false,
-        message: 'Đơn hàng này đã có thanh toán',
-        data: existingPayment
+      if (shippingAddress) {
+        existingPayment.shippingAddress = shippingAddress;
+        await existingPayment.save();
+      }
+      const bankQR = await BankQR.findOne({ isActive: true }).sort({ createdAt: -1 });
+      return res.status(200).json({
+        success: true,
+        data: {
+          payment: existingPayment,
+          bankQR: bankQR ? {
+            _id: bankQR._id,
+            bankName: bankQR.bankName,
+            accountNumber: bankQR.accountNumber,
+            accountHolder: bankQR.accountHolder,
+            qrCodeImage: bankQR.qrCodeImage
+          } : null,
+          transactionCode: existingPayment.transactionCode
+        },
+        message: 'Đơn hàng này đã có thanh toán'
       });
     }
 
@@ -84,13 +108,26 @@ exports.createPayment = async (req, res) => {
       });
     }
 
+    // Tính phí dịch vụ và VAT
+    const PLATFORM_FEE_PERCENT = 5;   // 5% phí sàn
+    const VAT_PERCENT = 10;           // 10% VAT áp dụng trên phí sàn
+    const amount = order.finalPrice;
+    const platformFee = Math.round(amount * PLATFORM_FEE_PERCENT / 100);
+    const vatAmount = Math.round(platformFee * VAT_PERCENT / 100);
+    const sellerAmount = amount - platformFee - vatAmount;
+
     // Create payment record
     const payment = await Payment.create({
       orderId: order._id,
       buyerId: buyerId,
       buyerName: order.buyerId.name,
       buyerPhone: order.buyerId.phone,
-      amount: order.finalPrice,
+      amount,
+      platformFeePercent: PLATFORM_FEE_PERCENT,
+      vatPercent: VAT_PERCENT,
+      platformFee,
+      vatAmount,
+      sellerAmount,
       transactionCode,
       shippingAddress: order.shippingAddress,
       status: 'pending'
@@ -133,7 +170,19 @@ exports.getPaymentByOrderId = async (req, res) => {
     const userId = req.user.id;
 
     const payment = await Payment.findOne({ orderId })
-      .populate('orderId')
+      .populate({
+        path: 'orderId',
+        populate: [
+          {
+            path: 'productId',
+            select: 'title images price'
+          },
+          {
+            path: 'shipperId',
+            select: 'name phone email avatar'
+          }
+        ]
+      })
       .populate('buyerId', 'name avatar')
       .populate('confirmedBy', 'name email');
 
@@ -154,9 +203,10 @@ exports.getPaymentByOrderId = async (req, res) => {
     }
 
     const isBuyer = order.buyerId.toString() === userId;
+    const isSeller = order.sellerId.toString() === userId;
     const isAdmin = req.user.isAdmin;
 
-    if (!isBuyer && !isAdmin) {
+    if (!isBuyer && !isAdmin && !isSeller) {
       return res.status(403).json({
         success: false,
         message: 'Bạn không có quyền xem thanh toán này'
@@ -214,10 +264,10 @@ exports.uploadPaymentProof = async (req, res) => {
       });
     }
 
-    if (payment.status !== 'pending') {
+    if (payment.status !== 'pending' && payment.status !== 'rejected') {
       return res.status(400).json({
         success: false,
-        message: 'Chỉ có thể upload ảnh biên lai cho thanh toán đang chờ xử lý'
+        message: 'Chỉ có thể upload ảnh biên lai cho thanh toán đang chờ xử lý hoặc bị từ chối'
       });
     }
 
@@ -232,6 +282,10 @@ exports.uploadPaymentProof = async (req, res) => {
     const uploadResult = await uploadToCloudinary(req.file.buffer, 'dnu-marketplace/payments');
 
     payment.paymentProof = uploadResult.secure_url;
+    payment.status = 'pending';
+    payment.rejectionReason = null;
+    payment.adminApproved = false;
+    payment.sellerApproved = false;
     await payment.save();
 
     // Notify admins
@@ -277,11 +331,17 @@ exports.getPendingPayments = async (req, res) => {
     const payments = await Payment.find({ status: 'pending' })
       .populate({
         path: 'orderId',
-        select: 'finalPrice status',
-        populate: {
-          path: 'productId',
-          select: 'title images'
-        }
+        select: 'finalPrice status sellerId shipperId pickupProof deliveryProof pickedUpAt deliveryMethod',
+        populate: [
+          {
+            path: 'productId',
+            select: 'title images'
+          },
+          {
+            path: 'shipperId',
+            select: 'name phone email avatar'
+          }
+        ]
       })
       .populate('buyerId', 'name avatar email phone')
       .sort({ createdAt: -1 });
@@ -323,42 +383,124 @@ exports.confirmPayment = async (req, res) => {
       });
     }
 
-    // Update payment status
-    payment.status = 'confirmed';
-    payment.confirmedBy = req.user.id;
-    payment.confirmedAt = new Date();
+    // Cập nhật trạng thái duyệt của Admin
+    payment.adminApproved = true;
+    payment.adminApprovedBy = req.user.id;
+    payment.adminApprovedAt = new Date();
     await payment.save();
 
-    // Update order status to confirmed
     const order = await Order.findById(payment.orderId._id);
-    if (order) {
-      order.status = 'confirmed';
-      order.confirmedAt = new Date();
-      await order.save();
-    }
+    let message = 'Đã xác nhận thanh toán từ phía Admin';
 
-    // Notify buyer
-    const io = req.app.get('io');
-    if (io) {
-      await createAndEmitNotification(
-        io,
-        payment.buyerId._id,
-        'payment_confirmed',
-        'Thanh toán đã được xác nhận',
-        `Admin đã xác nhận thanh toán của bạn. Đơn hàng đã được xác nhận.`,
-        { paymentId: payment._id, orderId: payment.orderId._id }
-      );
+    // Kiểm tra xem Người bán (Seller) đã duyệt chưa
+    if (payment.sellerApproved) {
+      // Cả hai cùng duyệt thành công
+      if (payment.paymentProof) {
+        payment.status = 'confirmed';
+        payment.confirmedBy = req.user.id;
+        payment.confirmedAt = new Date();
+      } else {
+        payment.status = 'pending';
+      }
+      await payment.save();
+
+      if (order) {
+        order.status = 'confirmed';
+        order.confirmedAt = new Date();
+        await order.save();
+
+        // Tự động đánh dấu sản phẩm là "Đã bán"
+        if (order.productId) {
+          await Product.findByIdAndUpdate(order.productId, {
+            status: 'Sold'
+          });
+        }
+      }
+
+      message = payment.paymentProof
+        ? 'Đã xác nhận thanh toán thành công (Cả Người bán và Admin đều đã phê duyệt)'
+        : 'Đã phê duyệt đơn hàng thành công và chuyển sang giao hàng COD';
+
+      // Notify buyer
+      const io = req.app.get('io');
+      if (io) {
+        await createAndEmitNotification(
+          io,
+          payment.buyerId._id,
+          'payment_confirmed',
+          payment.paymentProof ? 'Thanh toán đã được xác nhận' : 'Đơn hàng đã được xác nhận (COD)',
+          payment.paymentProof
+            ? `Admin và Người bán đã xác nhận thanh toán cho đơn hàng của bạn.`
+            : `Đơn hàng của bạn đã được duyệt và đang chuẩn bị giao.`,
+          { paymentId: payment._id, orderId: payment.orderId._id }
+        );
+        
+        // Notify seller
+        if (order) {
+          await createAndEmitNotification(
+            io,
+            order.sellerId,
+            'order_confirmed',
+            'Đơn hàng đã được xác nhận',
+            payment.paymentProof
+              ? `Admin đã duyệt thanh toán. Đơn hàng chuyển sang trạng thái đã xác nhận.`
+              : `Admin đã duyệt đơn hàng (COD). Đơn hàng chuyển sang trạng thái đã xác nhận để giao hàng.`,
+            { orderId: order._id }
+          );
+        }
+      }
+    } else {
+      message = payment.paymentProof
+        ? 'Đã phê duyệt thanh toán từ phía Admin. Đang chờ Người bán xác nhận đơn hàng để hoàn tất.'
+        : 'Admin đã duyệt đơn hàng. Đang chờ Người bán xác nhận để chuyển sang giao hàng.';
+
+      // Notify buyer
+      const io = req.app.get('io');
+      if (io) {
+        await createAndEmitNotification(
+          io,
+          payment.buyerId._id,
+          'payment_admin_approved',
+          'Thanh toán được duyệt bởi Admin',
+          `Admin đã duyệt thanh toán của bạn. Đang chờ Người bán xác nhận đơn hàng để hoàn tất.`,
+          { paymentId: payment._id, orderId: payment.orderId._id }
+        );
+
+        // Notify seller
+        if (order) {
+          await createAndEmitNotification(
+            io,
+            order.sellerId,
+            'payment_admin_approved',
+            'Admin đã duyệt thanh toán',
+            `Admin đã duyệt thanh toán cho mã GD: ${payment.transactionCode}. Vui lòng xác nhận đơn hàng để hoàn tất.`,
+            { orderId: order._id }
+          );
+        }
+      }
     }
 
     const populatedPayment = await Payment.findById(payment._id)
-      .populate('orderId')
+      .populate({
+        path: 'orderId',
+        populate: [
+          {
+            path: 'productId',
+            select: 'title images price'
+          },
+          {
+            path: 'shipperId',
+            select: 'name phone email avatar'
+          }
+        ]
+      })
       .populate('buyerId', 'name avatar')
       .populate('confirmedBy', 'name email');
 
     res.json({
       success: true,
       data: populatedPayment,
-      message: 'Đã xác nhận thanh toán thành công'
+      message
     });
   } catch (error) {
     console.error('Error confirming payment:', error);
@@ -396,6 +538,8 @@ exports.rejectPayment = async (req, res) => {
     // Update payment status
     payment.status = 'rejected';
     payment.rejectionReason = rejectionReason || 'Không hợp lệ';
+    payment.adminApproved = false;
+    payment.sellerApproved = false;
     await payment.save();
 
     // Notify buyer
@@ -412,7 +556,19 @@ exports.rejectPayment = async (req, res) => {
     }
 
     const populatedPayment = await Payment.findById(payment._id)
-      .populate('orderId')
+      .populate({
+        path: 'orderId',
+        populate: [
+          {
+            path: 'productId',
+            select: 'title images price'
+          },
+          {
+            path: 'shipperId',
+            select: 'name phone email avatar'
+          }
+        ]
+      })
       .populate('buyerId', 'name avatar')
       .populate('confirmedBy', 'name email');
 
@@ -444,11 +600,17 @@ exports.getAllPayments = async (req, res) => {
     const payments = await Payment.find(query)
       .populate({
         path: 'orderId',
-        select: 'finalPrice status',
-        populate: {
-          path: 'productId',
-          select: 'title images'
-        }
+        select: 'finalPrice status sellerId shipperId pickupProof deliveryProof pickedUpAt deliveryMethod',
+        populate: [
+          {
+            path: 'productId',
+            select: 'title images'
+          },
+          {
+            path: 'shipperId',
+            select: 'name phone email avatar'
+          }
+        ]
       })
       .populate('buyerId', 'name avatar email phone')
       .populate('confirmedBy', 'name email')
@@ -511,6 +673,92 @@ exports.getMyPayments = async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting my payments:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Admin xác nhận đã nhận tiền COD qua QR scan → notify shipper
+// @route   PUT /api/payments/:id/confirm-cod
+// @access  Admin
+exports.confirmCODReceived = async (req, res) => {
+  try {
+    const payment = await Payment.findById(req.params.id)
+      .populate('orderId')
+      .populate('buyerId', 'name');
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy thanh toán'
+      });
+    }
+
+    if (payment.status === 'confirmed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Thanh toán này đã được xác nhận rồi'
+      });
+    }
+
+    // Xác nhận thanh toán COD
+    payment.status = 'confirmed';
+    payment.confirmedBy = req.user.id;
+    payment.confirmedAt = new Date();
+    payment.adminApproved = true;
+    payment.adminApprovedBy = req.user.id;
+    payment.adminApprovedAt = new Date();
+    payment.codConfirmedByAdmin = true;
+    payment.codConfirmedAt = new Date();
+    await payment.save();
+
+    const order = await Order.findById(payment.orderId._id);
+
+    const io = req.app.get('io');
+    if (io && order) {
+      // Notify shipper - admin đã nhận tiền, shipper có thể xác nhận giao hàng
+      if (order.shipperId) {
+        await createAndEmitNotification(
+          io,
+          order.shipperId,
+          'cod_payment_confirmed',
+          '✅ Khách đã thanh toán COD',
+          `Admin đã xác nhận nhận tiền COD thành công. Vui lòng xác nhận và ấn "Giao hàng thành công".`,
+          { paymentId: payment._id, orderId: order._id }
+        );
+      }
+
+      // Notify buyer
+      await createAndEmitNotification(
+        io,
+        payment.buyerId._id,
+        'payment_confirmed',
+        'Thanh toán COD đã được xác nhận',
+        `Admin đã xác nhận nhận tiền COD thành công cho đơn hàng của bạn.`,
+        { paymentId: payment._id, orderId: order._id }
+      );
+    }
+
+    const populatedPayment = await Payment.findById(payment._id)
+      .populate({
+        path: 'orderId',
+        populate: [
+          { path: 'productId', select: 'title images price' },
+          { path: 'shipperId', select: 'name phone email avatar' }
+        ]
+      })
+      .populate('buyerId', 'name avatar')
+      .populate('confirmedBy', 'name email');
+
+    res.json({
+      success: true,
+      data: populatedPayment,
+      message: 'Đã xác nhận nhận tiền COD thành công. Shipper đã được thông báo.'
+    });
+  } catch (error) {
+    console.error('Error confirming COD payment:', error);
     res.status(500).json({
       success: false,
       message: error.message

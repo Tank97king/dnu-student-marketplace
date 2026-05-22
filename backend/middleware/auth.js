@@ -100,3 +100,24 @@ exports.authorizeSuperAdmin = (req, res, next) => {
   next();
 };
 
+// Grant access to shippers only
+exports.authorizeShipper = (req, res, next) => {
+  if (!req.user.isShipper || req.user.shipperStatus !== 'approved') {
+    return res.status(403).json({
+      success: false,
+      message: 'Chỉ Shipper đã được phê duyệt mới có quyền thực hiện hành động này'
+    });
+  }
+  next();
+};
+
+// Block shippers from buyer/seller actions
+exports.blockShipper = (req, res, next) => {
+  if (req.user.isShipper && req.user.shipperStatus === 'approved') {
+    return res.status(403).json({
+      success: false,
+      message: 'Tài khoản Shipper không được phép mua bán sản phẩm'
+    });
+  }
+  next();
+};

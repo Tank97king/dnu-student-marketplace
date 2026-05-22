@@ -13,7 +13,7 @@ const {
   suggestCategoryAndTags,
   suggestDescription
 } = require('../controllers/productController');
-const { protect } = require('../middleware/auth');
+const { protect, blockShipper } = require('../middleware/auth');
 const { upload } = require('../utils/uploadImage');
 const {
   validateCreateProduct,
@@ -29,10 +29,10 @@ router.post('/ai-suggest-description', suggestDescription);
 router.get('/:id', getProduct);
 
 // Protected routes - giới hạn tối đa 5 ảnh với validation
-router.post('/', protect, upload.array('images', 5), validateCreateProduct, createProduct);
-router.put('/:id', protect, upload.array('images', 5), validateUpdateProduct, updateProduct);
-router.delete('/:id', protect, deleteProduct);
-router.put('/:id/sold', protect, markAsSold);
+router.post('/', protect, blockShipper, upload.array('images', 5), validateCreateProduct, createProduct);
+router.put('/:id', protect, blockShipper, upload.array('images', 5), validateUpdateProduct, updateProduct);
+router.delete('/:id', protect, blockShipper, deleteProduct);
+router.put('/:id/sold', protect, blockShipper, markAsSold);
 router.post('/:id/report', protect, reportProduct);
 
 // Admin routes

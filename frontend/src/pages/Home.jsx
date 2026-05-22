@@ -123,7 +123,7 @@ export default function Home() {
           const response = await api.get('/products', {
             params: {
               category: categoryValue,
-              limit: 8,
+              limit: 4,
               sort: '-createdAt'
             }
           })
@@ -479,7 +479,7 @@ export default function Home() {
               ) : (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {categoryProds.slice(0, 8).map((product) => (
+                    {categoryProds.slice(0, 4).map((product) => (
                       <Link key={product._id} to={`/products/${product._id}`}>
                         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
                           <div className="w-full h-48 overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-700">

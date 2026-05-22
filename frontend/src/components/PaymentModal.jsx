@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import api from '../utils/api';
 import Toast from './Toast';
 
 export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
+  const { user } = useSelector(state => state.auth);
   const [loading, setLoading] = useState(false);
   const [payment, setPayment] = useState(null);
   const [bankQR, setBankQR] = useState(null);
@@ -18,11 +20,153 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
   const [lightboxImage, setLightboxImage] = useState('');
   const [imageZoom, setImageZoom] = useState(1);
 
+  // Address and Geography states
+  const [shippingAddress, setShippingAddress] = useState({
+    fullName: '',
+    phone: '',
+    address: '',
+    ward: '',
+    district: '',
+    city: '',
+    note: ''
+  });
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState('');
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState('');
+  const [selectedWardCode, setSelectedWardCode] = useState('');
+  const [loadingGeography, setLoadingGeography] = useState({
+    provinces: false,
+    districts: false,
+    wards: false
+  });
+  const [addressError, setAddressError] = useState('');
+
+  const hasCompleteAddress = order && order.shippingAddress && 
+    order.shippingAddress.fullName && 
+    order.shippingAddress.phone && 
+    order.shippingAddress.address && 
+    order.shippingAddress.city && 
+    order.shippingAddress.district && 
+    order.shippingAddress.ward;
+
   useEffect(() => {
     if (isOpen && order) {
       checkExistingPayment();
+      
+      // Initialize address info if incomplete
+      const orderAddr = order.shippingAddress || {};
+      setShippingAddress({
+        fullName: orderAddr.fullName || user?.name || '',
+        phone: orderAddr.phone || user?.phone || '',
+        address: orderAddr.address || user?.address || '',
+        ward: orderAddr.ward || '',
+        district: orderAddr.district || '',
+        city: orderAddr.city || '',
+        note: orderAddr.note || ''
+      });
+      setSelectedProvinceCode('');
+      setSelectedDistrictCode('');
+      setSelectedWardCode('');
+      setDistricts([]);
+      setWards([]);
+      setAddressError('');
     }
-  }, [isOpen, order]);
+  }, [isOpen, order, user]);
+
+  // Fetch provinces if order doesn't have a complete address
+  useEffect(() => {
+    if (isOpen && !hasCompleteAddress && provinces.length === 0) {
+      const fetchProvinces = async () => {
+        setLoadingGeography(prev => ({ ...prev, provinces: true }));
+        try {
+          const res = await fetch('https://provinces.open-api.vn/api/p/');
+          const data = await res.json();
+          setProvinces(data);
+        } catch (err) {
+          console.error('Error fetching provinces:', err);
+        } finally {
+          setLoadingGeography(prev => ({ ...prev, provinces: false }));
+        }
+      };
+      fetchProvinces();
+    }
+  }, [isOpen, hasCompleteAddress, provinces.length]);
+
+  const handleProvinceChange = async (e) => {
+    const code = e.target.value;
+    setSelectedProvinceCode(code);
+    setSelectedDistrictCode('');
+    setSelectedWardCode('');
+    setDistricts([]);
+    setWards([]);
+
+    const provinceObj = provinces.find(p => String(p.code) === String(code));
+    const provinceName = provinceObj ? provinceObj.name : '';
+
+    setShippingAddress(prev => ({
+      ...prev,
+      city: provinceName,
+      district: '',
+      ward: ''
+    }));
+
+    if (code) {
+      setLoadingGeography(prev => ({ ...prev, districts: true }));
+      try {
+        const res = await fetch(`https://provinces.open-api.vn/api/p/${code}?depth=2`);
+        const data = await res.json();
+        setDistricts(data.districts || []);
+      } catch (err) {
+        console.error('Error fetching districts:', err);
+      } finally {
+        setLoadingGeography(prev => ({ ...prev, districts: false }));
+      }
+    }
+  };
+
+  const handleDistrictChange = async (e) => {
+    const code = e.target.value;
+    setSelectedDistrictCode(code);
+    setSelectedWardCode('');
+    setWards([]);
+
+    const districtObj = districts.find(d => String(d.code) === String(code));
+    const districtName = districtObj ? districtObj.name : '';
+
+    setShippingAddress(prev => ({
+      ...prev,
+      district: districtName,
+      ward: ''
+    }));
+
+    if (code) {
+      setLoadingGeography(prev => ({ ...prev, wards: true }));
+      try {
+        const res = await fetch(`https://provinces.open-api.vn/api/d/${code}?depth=2`);
+        const data = await res.json();
+        setWards(data.wards || []);
+      } catch (err) {
+        console.error('Error fetching wards:', err);
+      } finally {
+        setLoadingGeography(prev => ({ ...prev, wards: false }));
+      }
+    }
+  };
+
+  const handleWardChange = (e) => {
+    const code = e.target.value;
+    setSelectedWardCode(code);
+
+    const wardObj = wards.find(w => String(w.code) === String(code));
+    const wardName = wardObj ? wardObj.name : '';
+
+    setShippingAddress(prev => ({
+      ...prev,
+      ward: wardName
+    }));
+  };
 
   useEffect(() => {
     let interval = null;
@@ -55,7 +199,9 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
         setPayment(response.data.data.payment);
         setBankQR(response.data.data.bankQR);
         setTransactionCode(response.data.data.payment.transactionCode);
-        if (response.data.data.payment.paymentProof) {
+        if (response.data.data.payment.status === 'rejected') {
+          setStep(2);
+        } else if (response.data.data.payment.paymentProof) {
           setStep(3);
         } else {
           setStep(2);
@@ -67,9 +213,28 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
   };
 
   const handleCreatePayment = async () => {
+    if (!hasCompleteAddress) {
+      if (
+        !shippingAddress.fullName ||
+        !shippingAddress.phone ||
+        !shippingAddress.address ||
+        !shippingAddress.city ||
+        !shippingAddress.district ||
+        !shippingAddress.ward
+      ) {
+        setAddressError('Vui lòng điền đầy đủ thông tin giao hàng (Họ tên, SĐT, Địa chỉ chi tiết, Tỉnh/Thành, Quận/Huyện, Phường/Xã)');
+        return;
+      }
+    }
+
     setLoading(true);
+    setAddressError('');
     try {
-      const response = await api.post('/payments', { orderId: order._id });
+      const payload = { orderId: order._id };
+      if (!hasCompleteAddress) {
+        payload.shippingAddress = shippingAddress;
+      }
+      const response = await api.post('/payments', payload);
       if (response.data.success) {
         setPayment(response.data.data.payment);
         setBankQR(response.data.data.bankQR);
@@ -354,6 +519,131 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
                   </p>
                 </div>
 
+                {!hasCompleteAddress && (
+                  <div className="border border-yellow-200 dark:border-yellow-900/50 bg-yellow-50/50 dark:bg-yellow-950/20 p-4 rounded-lg space-y-4">
+                    <p className="text-gray-900 dark:text-white font-bold text-sm flex items-center gap-1.5">
+                      📍 Thông tin giao hàng (Đơn hàng chưa có địa chỉ)
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Vui lòng cung cấp địa chỉ nhận hàng để có thể tiến hành thanh toán.
+                    </p>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                        Họ tên người nhận *
+                      </label>
+                      <input
+                        type="text"
+                        value={shippingAddress.fullName}
+                        onChange={(e) => setShippingAddress({...shippingAddress, fullName: e.target.value})}
+                        placeholder="Nhập họ tên người nhận..."
+                        className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-1 focus:ring-orange-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                        Số điện thoại *
+                      </label>
+                      <input
+                        type="tel"
+                        value={shippingAddress.phone}
+                        onChange={(e) => setShippingAddress({...shippingAddress, phone: e.target.value})}
+                        placeholder="Nhập số điện thoại nhận hàng..."
+                        className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-1 focus:ring-orange-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                        Địa chỉ chi tiết *
+                      </label>
+                      <textarea
+                        value={shippingAddress.address}
+                        onChange={(e) => setShippingAddress({...shippingAddress, address: e.target.value})}
+                        placeholder="Số nhà, tên ngõ, tên đường..."
+                        className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-1 focus:ring-orange-500"
+                        rows="2"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                          Tỉnh/Thành phố *
+                        </label>
+                        <select
+                          value={selectedProvinceCode}
+                          onChange={handleProvinceChange}
+                          className="w-full px-2 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-xs focus:ring-1 focus:ring-orange-500"
+                          required
+                        >
+                          <option value="">{loadingGeography.provinces ? 'Đang tải...' : 'Chọn Tỉnh/Thành'}</option>
+                          {provinces.map(p => (
+                            <option key={p.code} value={p.code}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                          Quận/Huyện *
+                        </label>
+                        <select
+                          value={selectedDistrictCode}
+                          onChange={handleDistrictChange}
+                          disabled={!selectedProvinceCode || loadingGeography.districts}
+                          className="w-full px-2 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-xs focus:ring-1 focus:ring-orange-500"
+                          required
+                        >
+                          <option value="">
+                            {loadingGeography.districts ? 'Đang tải...' : 'Chọn Quận/Huyện'}
+                          </option>
+                          {districts.map(d => (
+                            <option key={d.code} value={d.code}>{d.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                          Phường/Xã *
+                        </label>
+                        <select
+                          value={selectedWardCode}
+                          onChange={handleWardChange}
+                          disabled={!selectedDistrictCode || loadingGeography.wards}
+                          className="w-full px-2 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-xs focus:ring-1 focus:ring-orange-500"
+                          required
+                        >
+                          <option value="">
+                            {loadingGeography.wards ? 'Đang tải...' : 'Chọn Phường/Xã'}
+                          </option>
+                          {wards.map(w => (
+                            <option key={w.code} value={w.code}>{w.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                        Ghi chú địa chỉ (tùy chọn)
+                      </label>
+                      <input
+                        type="text"
+                        value={shippingAddress.note}
+                        onChange={(e) => setShippingAddress({...shippingAddress, note: e.target.value})}
+                        placeholder="Ví dụ: Giao giờ hành chính, gọi trước khi giao..."
+                        className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-1 focus:ring-orange-500"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
                   <p className="text-yellow-800 dark:text-yellow-200">
                     ⚠️ Sau khi click "Thanh toán", bạn sẽ nhận được mã giao dịch. 
@@ -361,10 +651,16 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
                   </p>
                 </div>
 
+                {addressError && (
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium">
+                    ⚠️ {addressError}
+                  </div>
+                )}
+
                 <button
                   onClick={handleCreatePayment}
                   disabled={loading}
-                  className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                  className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 disabled:opacity-50 font-bold tracking-wide"
                 >
                   {loading ? 'Đang tạo thanh toán...' : 'Bắt đầu thanh toán'}
                 </button>
@@ -374,6 +670,20 @@ export default function PaymentModal({ order, isOpen, onClose, onSuccess }) {
             {/* Step 2: Show QR Code and Upload Proof */}
             {step === 2 && bankQR && (
               <div className="space-y-4">
+                {/* Rejection Warning Banner */}
+                {payment && payment.status === 'rejected' && (
+                  <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border-2 border-red-500">
+                    <p className="text-sm font-semibold text-red-800 dark:text-red-200 flex items-center gap-1">
+                      ❌ Thanh toán bị Admin từ chối phê duyệt:
+                    </p>
+                    <p className="text-base font-bold text-red-600 dark:text-red-400 mt-1">
+                      {payment.rejectionReason || 'Không có lý do cụ thể'}
+                    </p>
+                    <p className="text-xs text-red-700 dark:text-red-300 mt-2">
+                      Vui lòng kiểm tra lại thông tin chuyển khoản và tải lên ảnh biên lai mới chính xác.
+                    </p>
+                  </div>
+                )}
                 {/* Countdown Timer */}
                 {timeRemaining && (
                   <div className={`bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border-2 ${timeRemaining === 'Đã hết hạn' ? 'border-red-500' : 'border-red-300'}`}>

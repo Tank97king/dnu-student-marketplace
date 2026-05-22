@@ -35,6 +35,8 @@ const hashtagRoutes = require('./routes/hashtag');
 const chatbotRoutes = require('./routes/chatbot');
 const couponRoutes = require('./routes/coupon').router;
 const couponAdminRoutes = require('./routes/coupon').adminRouter;
+const shipperRoutes = require('./routes/shipper');
+const sellerBankQRRoutes = require('./routes/sellerBankQR');
 
 const app = express();
 const server = http.createServer(app);
@@ -179,6 +181,8 @@ app.use('/api/hashtags', hashtagRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/admin/coupons', couponAdminRoutes);
+app.use('/api/shipper', shipperRoutes);
+app.use('/api/seller-bankqr', sellerBankQRRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -13,17 +13,20 @@ export default function ProfileDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Fetch user data with followers/following if not present
+  // Fetch user data with followers/following and shipper status if not present
   useEffect(() => {
     const fetchUserData = async () => {
-      if (user && (!user.followers || !user.following)) {
+      if (user && (!user.followers || !user.following || user.isShipper === undefined || user.shipperStatus === undefined)) {
         try {
           const response = await api.get('/auth/me');
           if (response.data.success && response.data.data) {
+            const userData = response.data.data;
             dispatch(updateUser({
-              followers: response.data.data.followers || [],
-              following: response.data.data.following || [],
-              rating: response.data.data.rating || { average: 0, count: 0 }
+              followers: userData.followers || [],
+              following: userData.following || [],
+              rating: userData.rating || { average: 0, count: 0 },
+              isShipper: userData.isShipper || false,
+              shipperStatus: userData.shipperStatus || 'none'
             }));
           }
         } catch (error) {
@@ -85,7 +88,7 @@ export default function ProfileDropdown() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-[100] max-h-[90vh] overflow-y-auto">
+        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-[100] max-h-[90vh] overflow-y-auto">
           {/* Yellow Header */}
           <div className="bg-yellow-400 h-4 rounded-t-lg"></div>
 
@@ -159,6 +162,16 @@ export default function ProfileDropdown() {
                 <span className="text-gray-800 dark:text-gray-200">Đơn mua</span>
               </Link>
               
+              {/* Hoàn đơn hàng */}
+              <Link 
+                to="/orders?type=buying" 
+                onClick={() => setIsOpen(false)}
+                className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                <span className="text-lg mr-3">↩</span>
+                <span className="text-gray-800 dark:text-gray-200">Hoàn đơn hàng</span>
+              </Link>
+              
               <Link 
                 to="/seller-dashboard" 
                 onClick={() => setIsOpen(false)}
@@ -191,6 +204,18 @@ export default function ProfileDropdown() {
                 </svg>
                 <span className="text-gray-800 dark:text-gray-200">Lịch sử thanh toán</span>
               </Link>
+
+              {/* Shipper Dashboard - chỉ hiện khi đã được duyệt */}
+              {user?.isShipper && user?.shipperStatus === 'approved' && (
+                <Link 
+                  to="/shipper" 
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                >
+                  <span className="text-lg mr-3">🛵</span>
+                  <span className="text-gray-800 dark:text-gray-200">Shipper Dashboard</span>
+                </Link>
+              )}
             </div>
           </div>
 
@@ -207,6 +232,17 @@ export default function ProfileDropdown() {
                   <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
                 </svg>
                 <span className="text-gray-800 dark:text-gray-200">Sản phẩm đã lưu</span>
+              </Link>
+
+              <Link 
+                to="/compare" 
+                onClick={() => setIsOpen(false)}
+                className="flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                </svg>
+                <span className="text-gray-800 dark:text-gray-200">So sánh sản phẩm</span>
               </Link>
               
               <Link 

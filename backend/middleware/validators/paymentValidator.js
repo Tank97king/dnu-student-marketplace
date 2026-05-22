@@ -23,11 +23,6 @@ exports.validateCreatePayment = [
     .withMessage('Order ID là bắt buộc')
     .isMongoId()
     .withMessage('Order ID không hợp lệ'),
-  body('amount')
-    .notEmpty()
-    .withMessage('Số tiền là bắt buộc')
-    .isFloat({ min: 0.01 })
-    .withMessage('Số tiền phải lớn hơn 0'),
   body('bankQRId')
     .optional()
     .isMongoId()

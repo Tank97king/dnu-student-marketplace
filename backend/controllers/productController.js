@@ -342,17 +342,33 @@ exports.updateProduct = async (req, res) => {
       const results = await Promise.all(uploadPromises);
       const newImages = results.map(result => result.secure_url);
       
-      // Giới hạn tổng số ảnh không quá 5
-      const totalImages = imagesToKeep.length + newImages.length;
+      let finalImages = [];
+      let fileIndex = 0;
       
+      imagesToKeep.forEach(img => {
+        if (img.startsWith('new-file-') || img === 'new-file-placeholder') {
+          if (fileIndex < newImages.length) {
+            finalImages.push(newImages[fileIndex++]);
+          }
+        } else {
+          finalImages.push(img);
+        }
+      });
+      
+      // Nếu còn ảnh mới chưa được map (đề phòng trường hợp frontend không dùng placeholder hoặc gửi thừa)
+      while (fileIndex < newImages.length) {
+        finalImages.push(newImages[fileIndex++]);
+      }
+      
+      const totalImages = finalImages.length;
       if (totalImages > 5) {
         return res.status(400).json({
           success: false,
-          message: `Tổng số ảnh không được vượt quá 5. Hiện tại có ${imagesToKeep.length} ảnh, bạn đang thêm ${newImages.length} ảnh.`
+          message: `Tổng số ảnh không được vượt quá 5. Hiện tại có ${totalImages} ảnh.`
         });
       }
       
-      product.images = [...imagesToKeep, ...newImages];
+      product.images = finalImages;
     } else {
       // Nếu không có ảnh mới, cập nhật danh sách ảnh hiện tại
       product.images = imagesToKeep;
@@ -616,6 +632,91 @@ exports.rejectProduct = async (req, res) => {
   }
 };
 
+// Hàm fallback gợi ý danh mục và tags cục bộ bằng từ khóa nếu AI lỗi/hết quota
+function fallbackSuggestMetadata(title, description) {
+  const text = `${title || ''} ${description || ''}`.toLowerCase();
+  
+  const rules = [
+    {
+      category: 'Sách',
+      keywords: ['sách', 'truyện', 'giáo trình', 'vở', 'tài liệu', 'đề cương', 'ôn thi', 'bài tập', 'tiểu thuyết', 'novel', 'manga', 'tạp chí', 'ielts', 'toeic', 'hsk', 'giải tích', 'đại số', 'vật lý', 'hóa học'],
+      tags: ['sách cũ', 'tài liệu học tập', 'sách sinh viên', 'giáo trình']
+    },
+    {
+      category: 'Điện tử',
+      keywords: ['điện thoại', 'laptop', 'máy tính', 'tai nghe', 'sạc', 'pin', 'tivi', 'loa', 'camera', 'màn hình', 'keyboard', 'chuột', 'mouse', 'ipad', 'tablet', 'iphone', 'samsung', 'oppo', 'xiaomi', 'asus', 'dell', 'macbook', 'lenovo', 'hp', 'ram', 'cpu', 'card', 'linh kiện', 'usb', 'smartwatch'],
+      tags: ['thiết bị điện tử', 'phụ kiện công nghệ', 'đồ dùng điện tử', 'thanh lý điện tử']
+    },
+    {
+      category: 'Quần áo',
+      keywords: ['áo', 'quần', 'giày', 'dép', 'váy', 'đầm', 'mũ', 'nón', 'balo', 'túi xách', 'sneaker', 'thắt lưng', 'jacket', 't-shirt', 'hoodie', 'đồng phục', 'áo khoác', 'sơ mi', 'áo thun'],
+      tags: ['thời trang', 'quần áo cũ', 'phụ kiện thời trang', 'sinh viên']
+    },
+    {
+      category: 'Nội thất',
+      keywords: ['bàn', 'ghế', 'giường', 'nệm', 'chăn', 'gối', 'tủ', 'kệ', 'đèn', 'gương', 'decor', 'rèm', 'thảm', 'tranh', 'tủ lạnh', 'bếp', 'nồi', 'chén', 'bát', 'đồ gia dụng', 'móc treo'],
+      tags: ['nội thất phòng trọ', 'đồ gia dụng', 'decor phòng', 'đồ dùng phòng trọ']
+    },
+    {
+      category: 'Văn phòng phẩm',
+      keywords: ['bút', 'thước', 'sổ', 'tập', 'kẹp', 'băng dính', 'văn phòng phẩm', 'giấy', 'note', 'compas', 'hồ sơ', 'bảng vẽ', 'bullet journal', 'sticker'],
+      tags: ['dụng cụ học tập', 'văn phòng phẩm', 'học tập']
+    },
+    {
+      category: 'Thể thao',
+      keywords: ['bóng', 'vợt', 'cầu lông', 'giày thể thao', 'gym', 'yoga', 'xe đạp', 'thể thao', 'áo đấu', 'thảm tập', 'kính bơi', 'đồ bơi', 'nón bảo hiểm', 'chạy bộ'],
+      tags: ['dụng cụ thể thao', 'rèn luyện sức khỏe', 'đồ thể thao']
+    }
+  ];
+
+  let matchedCategory = 'Khác';
+  let matchedTags = ['đồ dùng sinh viên', 'thanh lý'];
+  let maxMatches = 0;
+
+  for (const rule of rules) {
+    let matches = 0;
+    for (const keyword of rule.keywords) {
+      if (text.includes(keyword)) {
+        matches++;
+      }
+    }
+    if (matches > maxMatches) {
+      maxMatches = matches;
+      matchedCategory = rule.category;
+      matchedTags = [...rule.tags];
+    }
+  }
+
+  // Thêm tags từ tiêu đề
+  const words = (title || '').split(/\s+/).map(w => w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").trim().toLowerCase()).filter(w => w.length > 2);
+  const wordsSet = new Set(words);
+  const commonWordsToExclude = ['bán', 'thanh', 'lý', 'cần', 'mua', 'giá', 'rẻ', 'cho', 'tốt', 'mới', 'đẹp', 'như', 'hình', 'sinh', 'viên', 'dnu'];
+  
+  for (const word of wordsSet) {
+    if (!commonWordsToExclude.includes(word) && matchedTags.length < 8) {
+      matchedTags.push(word);
+    }
+  }
+
+  return {
+    category: matchedCategory,
+    tags: matchedTags.slice(0, 10)
+  };
+}
+
+// Hàm fallback gợi ý mô tả cục bộ nếu AI lỗi/hết quota
+function fallbackSuggestDescription(title, description) {
+  const cleanTitle = String(title).trim();
+  let desc = `Mình cần thanh lý ${cleanTitle} với giá cả cực kỳ hợp lý cho các bạn sinh viên DNU. `;
+  if (description && String(description).trim()) {
+    desc += `Sản phẩm có đặc điểm: ${String(description).trim().slice(0, 150)}. `;
+  } else {
+    desc += `Mặt hàng này còn sử dụng rất tốt, chất lượng đảm bảo và hình thức còn đẹp. `;
+  }
+  desc += `Giao dịch trực tiếp, thuận tiện xem đồ quanh khu vực trường hoặc ký túc xá. Mọi người quan tâm nhắn tin mình nhé!`;
+  return desc;
+}
+
 // @desc    AI gợi ý category và tags từ title + description
 // @route   POST /api/products/ai-suggest-metadata
 // @access  Public
@@ -638,13 +739,24 @@ Nội dung:
 ${text.slice(0, 1500)}
 ---`;
 
-    const response = await generateContent(prompt);
+    let response;
+    try {
+      response = await generateContent(prompt);
+    } catch (apiError) {
+      console.warn('[Gemini API Error] Failed to generate content:', apiError.message);
+      response = null;
+    }
+
     if (!response) {
-      return res.status(503).json({
-        success: false,
-        message: 'AI tạm thời không phản hồi. Thử lại sau.'
+      console.log('[AI Fallback] Using local rule-based category & tags suggestion');
+      const fallbackData = fallbackSuggestMetadata(title, description);
+      return res.json({
+        success: true,
+        data: fallbackData,
+        message: 'Gợi ý tự động từ hệ thống (Fallback)'
       });
     }
+
     try {
       const jsonStr = response.replace(/```json?\s*|\s*```/g, '').trim();
       const parsed = JSON.parse(jsonStr);
@@ -655,9 +767,12 @@ ${text.slice(0, 1500)}
         data: { category, tags }
       });
     } catch (e) {
-      return res.status(500).json({
-        success: false,
-        message: 'Không phân tích được kết quả AI'
+      console.warn('[AI JSON Parse Error] Using local fallback:', e.message);
+      const fallbackData = fallbackSuggestMetadata(title, description);
+      return res.json({
+        success: true,
+        data: fallbackData,
+        message: 'Gợi ý tự động từ hệ thống (Fallback do lỗi định dạng AI)'
       });
     }
   } catch (error) {
@@ -686,13 +801,24 @@ ${description ? `- Mô tả thô (có thể dựa vào): ${String(description).s
 
 Viết 2-4 câu mô tả bằng tiếng Việt, không chèn từ "mô tả" hay "sản phẩm này". Chỉ trả về đoạn mô tả, không giải thích.`;
 
-    const response = await generateContent(prompt);
+    let response;
+    try {
+      response = await generateContent(prompt);
+    } catch (apiError) {
+      console.warn('[Gemini API Error] Failed to generate description:', apiError.message);
+      response = null;
+    }
+
     if (!response) {
-      return res.status(503).json({
-        success: false,
-        message: 'AI tạm thời không phản hồi. Thử lại sau.'
+      console.log('[AI Fallback] Using local description generator');
+      const fallbackDesc = fallbackSuggestDescription(title, description);
+      return res.json({
+        success: true,
+        data: { description: fallbackDesc },
+        message: 'Gợi ý tự động từ hệ thống (Fallback)'
       });
     }
+
     const desc = response.trim();
     return res.json({
       success: true,

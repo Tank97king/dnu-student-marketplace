@@ -9,14 +9,14 @@ const {
   getUserStats,
   getUserPublicProfile,
   getUserProducts,
-  followUser,
-  unfollowUser,
   getSellerStats
 } = require('../controllers/userController');
 const {
   getFollowers,
   getFollowing,
-  getUserSuggestions
+  getUserSuggestions,
+  followUser,
+  unfollowUser
 } = require('../controllers/followController');
 const { protect } = require('../middleware/auth');
 

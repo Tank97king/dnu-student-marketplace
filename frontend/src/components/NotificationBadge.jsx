@@ -251,6 +251,32 @@ export default function NotificationBadge() {
   };
 
   const getNavigationPath = (notification) => {
+    // Some types shouldn't go to product even if productId exists
+    const orderTypes = [
+      'offer_accepted', 'offer_rejected', 'offer_countered', 'new_offer',
+      'payment_pending_review', 'payment_confirmed', 'payment_rejected', 'payment_expired',
+      'new_order', 'shipper_assigned'
+    ];
+    if (orderTypes.includes(notification.type)) {
+      // If user is admin, they might want to go to admin orders, but for now /orders is ok or we can just let it go to /orders and user selects tab
+      return user?.isAdmin ? '/admin' : '/orders';
+    }
+
+    const shipperTypes = ['order_assigned', 'cod_payment_confirmed', 'shipper_approved', 'shipper_rejected'];
+    if (shipperTypes.includes(notification.type)) {
+      return '/shipper';
+    }
+
+    // Seller nhận tiền → vào SellerDashboard
+    if (notification.type === 'seller_payment_received') {
+      return '/seller-dashboard';
+    }
+
+    // Admin nhận xác nhận từ seller → vào PaymentManagement
+    if (notification.type === 'seller_receipt_confirmed') {
+      return '/payments';
+    }
+
     // Priority: data.productId > type-based navigation
     if (notification.data?.productId) {
       return `/products/${notification.data.productId}`;
@@ -265,16 +291,6 @@ export default function NotificationBadge() {
       
       case 'new_message':
         return '/chat';
-      
-      case 'offer_accepted':
-      case 'offer_rejected':
-      case 'offer_countered':
-      case 'new_offer':
-      case 'payment_pending_review':
-      case 'payment_confirmed':
-      case 'payment_rejected':
-      case 'payment_expired':
-        return '/orders';
       
       case 'new_coupon':
         return '/my-promotions';
@@ -347,7 +363,13 @@ export default function NotificationBadge() {
       'payment_expired': '⏰',
       'order_expired': '⏰',
       'offer_expired': '⏰',
-      'new_coupon': '🎟️'
+      'new_coupon': '🎟️',
+      'new_order': '🛍️',
+      'shipper_assigned': '🛵',
+      'order_assigned': '📦',
+      'cod_payment_confirmed': '💵',
+      'shipper_approved': '🎉',
+      'shipper_rejected': '🚫'
     };
     return icons[type] || '🔔';
   };
@@ -362,7 +384,9 @@ export default function NotificationBadge() {
       'offer_rejected': 'text-red-600 dark:text-red-400',
       'payment_confirmed': 'text-green-600 dark:text-green-400',
       'payment_rejected': 'text-red-600 dark:text-red-400',
-      'new_coupon': 'text-purple-600 dark:text-purple-400'
+      'new_coupon': 'text-purple-600 dark:text-purple-400',
+      'new_order': 'text-blue-600 dark:text-blue-400',
+      'cod_payment_confirmed': 'text-green-600 dark:text-green-400',
     };
     return colors[type] || 'text-gray-600 dark:text-gray-400';
   };

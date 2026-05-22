@@ -9,15 +9,15 @@ const {
   acceptCounterOffer,
   cancelOffer
 } = require('../controllers/offerController');
-const { protect } = require('../middleware/auth');
+const { protect, blockShipper } = require('../middleware/auth');
 
-router.post('/', protect, createOffer);
+router.post('/', protect, blockShipper, createOffer);
 router.get('/', protect, getOffers);
-router.put('/:id/accept', protect, acceptOffer);
-router.put('/:id/reject', protect, rejectOffer);
-router.put('/:id/counter', protect, counterOffer);
-router.put('/:id/accept-counter', protect, acceptCounterOffer);
-router.put('/:id/cancel', protect, cancelOffer);
+router.put('/:id/accept', protect, blockShipper, acceptOffer);
+router.put('/:id/reject', protect, blockShipper, rejectOffer);
+router.put('/:id/counter', protect, blockShipper, counterOffer);
+router.put('/:id/accept-counter', protect, blockShipper, acceptCounterOffer);
+router.put('/:id/cancel', protect, blockShipper, cancelOffer);
 
 module.exports = router;
 

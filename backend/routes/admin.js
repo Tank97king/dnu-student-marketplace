@@ -9,7 +9,8 @@ const {
   getStats,
   rejectProduct,
   checkEmailConfig,
-  getRevenueStats
+  getRevenueStats,
+  dismissReports
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -29,5 +30,6 @@ router.get('/products/pending', getPendingProducts);
 router.put('/products/:id/approve', approveProduct);
 router.put('/products/:id/reject', rejectProduct);
 router.get('/reports', getReports);
+router.put('/products/:id/dismiss-reports', dismissReports);
 
 module.exports = router;

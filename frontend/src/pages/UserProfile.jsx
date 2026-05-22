@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../utils/api';
 import StarRating from '../components/StarRating';
+import FollowListModal from '../components/FollowListModal';
 
 export default function UserProfile() {
   const { userId } = useParams();
@@ -15,6 +16,8 @@ export default function UserProfile() {
   const [activeTab, setActiveTab] = useState('posts');
   const [posts, setPosts] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowModalOpen, setIsFollowModalOpen] = useState(false);
+  const [followModalType, setFollowModalType] = useState('followers'); // 'followers' | 'following'
 
   useEffect(() => {
     loadProfile();
@@ -223,17 +226,29 @@ export default function UserProfile() {
 
                 {/* Followers/Following */}
                 <div className="flex justify-center space-x-4 mb-4 text-sm">
-                  <div className="text-center">
+                  <div 
+                    onClick={() => {
+                      setFollowModalType('followers');
+                      setIsFollowModalOpen(true);
+                    }}
+                    className="text-center cursor-pointer hover:opacity-80 transition-opacity"
+                  >
                     <p className="font-semibold text-gray-900 dark:text-white">
                       {profile.followers?.length || profile.followersCount || 0}
                     </p>
-                    <p className="text-gray-600 dark:text-gray-400">Người theo dõi</p>
+                    <p className="text-gray-600 dark:text-gray-400 hover:text-orange-600">Người theo dõi</p>
                   </div>
-                  <div className="text-center">
+                  <div 
+                    onClick={() => {
+                      setFollowModalType('following');
+                      setIsFollowModalOpen(true);
+                    }}
+                    className="text-center cursor-pointer hover:opacity-80 transition-opacity"
+                  >
                     <p className="font-semibold text-gray-900 dark:text-white">
                       {profile.following?.length || profile.followingCount || 0}
                     </p>
-                    <p className="text-gray-600 dark:text-gray-400">Đang theo dõi</p>
+                    <p className="text-gray-600 dark:text-gray-400 hover:text-orange-600">Đang theo dõi</p>
                   </div>
                 </div>
 
@@ -428,6 +443,19 @@ export default function UserProfile() {
           </div>
         </div>
       </div>
+
+      <FollowListModal
+        isOpen={isFollowModalOpen}
+        onClose={() => {
+          setIsFollowModalOpen(false);
+          loadProfile();
+          checkFollowingStatus();
+        }}
+        userId={userId}
+        username={profile.name}
+        type={followModalType}
+        currentUser={currentUser}
+      />
     </div>
   );
 }
