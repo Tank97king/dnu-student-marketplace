@@ -795,6 +795,7 @@ exports.getAllOrdersForAdmin = async (req, res) => {
       .populate('sellerId', 'name email phone avatar')
       .populate('productId', 'title images price')
       .populate('shipperId', 'name phone email avatar')
+      .populate('payment')
       .sort({ createdAt: -1 });
 
     res.json({ success: true, count: orders.length, data: orders });

@@ -102,7 +102,7 @@ const Chatbot = () => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 bg-white dark:bg-gray-800 rounded-full p-1 shadow-2xl shadow-blue-500/30 transition-all duration-300 z-50 hover:scale-110 border-2 border-blue-100 dark:border-gray-700 group flex items-center justify-center"
+          className="fixed bottom-6 right-6 bg-white dark:bg-gray-800 rounded-full p-1 shadow-2xl shadow-orange-500/30 transition-all duration-300 z-50 hover:scale-110 border-2 border-orange-100 dark:border-gray-700 group flex items-center justify-center"
           aria-label="Mở chatbot AI"
           title="Chat với AI"
           id="chatbot-open-btn"
@@ -126,7 +126,7 @@ const Chatbot = () => {
           id="chatbot-window"
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-t-xl flex justify-between items-center flex-shrink-0">
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-t-xl flex justify-between items-center flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="relative">
                 <img 
@@ -134,7 +134,7 @@ const Chatbot = () => {
                   alt="DNU Bot" 
                   className="w-9 h-9 rounded-full object-cover border-2 border-white/30"
                 />
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-blue-700"></span>
+                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-orange-600"></span>
               </div>
               <div>
                 <h3 className="font-semibold text-sm leading-tight">Trợ lý AI</h3>
@@ -143,7 +143,7 @@ const Chatbot = () => {
             <div className="flex gap-1">
               <button
                 onClick={handleClear}
-                className="p-2 hover:bg-blue-500/50 rounded-lg transition-colors"
+                className="p-2 hover:bg-orange-600/50 rounded-lg transition-colors"
                 title="Xóa lịch sử"
                 aria-label="Xóa lịch sử chat"
                 id="chatbot-clear-btn"
@@ -155,7 +155,7 @@ const Chatbot = () => {
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-2 hover:bg-blue-500/50 rounded-lg transition-colors"
+                className="p-2 hover:bg-orange-600/50 rounded-lg transition-colors"
                 aria-label="Đóng chatbot"
                 title="Đóng"
                 id="chatbot-close-btn"
@@ -181,7 +181,7 @@ const Chatbot = () => {
                 )}
 
                 <div className={`max-w-[80%] rounded-2xl px-3 py-2.5 ${msg.role === 'user'
-                  ? 'bg-blue-600 text-white rounded-br-sm'
+                  ? 'bg-orange-500 text-white rounded-br-sm'
                   : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-bl-sm shadow-sm'
                   }`}>
                   <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
@@ -198,7 +198,7 @@ const Chatbot = () => {
                             key={p._id}
                             to={`/products/${p._id}`}
                             onClick={() => setIsOpen(false)}
-                            className="block rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden hover:shadow-md transition-all hover:border-blue-300 bg-gray-50 dark:bg-gray-700/50"
+                            className="block rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden hover:shadow-md transition-all hover:border-orange-300 bg-gray-50 dark:bg-gray-700/50"
                           >
                             <div className="aspect-square w-full bg-gray-200 dark:bg-gray-600">
                               <img
@@ -212,7 +212,7 @@ const Chatbot = () => {
                               <p className="text-xs font-medium line-clamp-2 text-gray-800 dark:text-gray-200 leading-tight" title={p.title}>
                                 {p.title}
                               </p>
-                              <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mt-0.5">
+                              <p className="text-xs font-bold text-orange-600 dark:text-orange-400 mt-0.5">
                                 {Number(p.price || 0).toLocaleString('vi-VN')} ₫
                               </p>
                             </div>
@@ -223,7 +223,7 @@ const Chatbot = () => {
                         <Link
                           to="/products"
                           onClick={() => setIsOpen(false)}
-                          className="block mt-2 text-center text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                          className="block mt-2 text-center text-xs text-orange-600 dark:text-orange-400 hover:underline"
                         >
                           Xem thêm {msg.products.length - 4} sản phẩm →
                         </Link>
@@ -244,9 +244,9 @@ const Chatbot = () => {
                 />
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                     <span className="text-xs text-gray-400 ml-1">Đang tìm kiếm...</span>
                   </div>
                 </div>
@@ -265,7 +265,7 @@ const Chatbot = () => {
                   <button
                     key={i}
                     onClick={() => handleQuickAction(action.message)}
-                    className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2 text-left hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors text-gray-700 dark:text-gray-300"
+                    className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2 text-left hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition-colors text-gray-700 dark:text-gray-300"
                     id={`chatbot-quick-${i}`}
                   >
                     {action.label}
@@ -283,7 +283,7 @@ const Chatbot = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Nhập câu hỏi..."
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
                 disabled={loading}
                 autoFocus
                 id="chatbot-input"
@@ -291,7 +291,7 @@ const Chatbot = () => {
               <button
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                 title="Gửi"
                 id="chatbot-send-btn"
               >

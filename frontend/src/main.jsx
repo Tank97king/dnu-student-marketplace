@@ -6,6 +6,7 @@ import App from './App'
 import { store } from './store/store'
 import ErrorBoundary from './components/ErrorBoundary'
 import { ConfirmProvider } from './components/ConfirmModal'
+import { ToastProvider } from './context/ToastContext'
 import './index.css'
 
 // Debug: Log API URL
@@ -24,9 +25,11 @@ if (!rootElement) {
       <ErrorBoundary>
         <Provider store={store}>
           <BrowserRouter>
-            <ConfirmProvider>
-              <App />
-            </ConfirmProvider>
+            <ToastProvider>
+              <ConfirmProvider>
+                <App />
+              </ConfirmProvider>
+            </ToastProvider>
           </BrowserRouter>
         </Provider>
       </ErrorBoundary>

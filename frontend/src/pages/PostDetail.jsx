@@ -254,7 +254,7 @@ export default function PostDetailPage() {
                 <Link
                   key={index}
                   to={`/hashtags/${tag}`}
-                  className="text-blue-500 dark:text-blue-400 text-sm hover:underline"
+                  className="text-orange-500 dark:text-orange-400 text-sm hover:underline font-medium"
                 >
                   #{tag}
                 </Link>
@@ -334,18 +334,18 @@ export default function PostDetailPage() {
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Viết bình luận..."
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
               />
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
               >
                 Đăng
               </button>
             </form>
           ) : (
             <p className="text-center text-gray-500 dark:text-gray-400">
-              <Link to="/login" className="text-blue-500 hover:underline">Đăng nhập</Link> để bình luận
+              <Link to="/login" className="text-orange-500 hover:underline">Đăng nhập</Link> để bình luận
             </p>
           )}
         </div>

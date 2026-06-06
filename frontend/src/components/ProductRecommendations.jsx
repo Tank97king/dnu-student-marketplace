@@ -147,7 +147,7 @@ export default function ProductRecommendations({ type, productId, limit = 8 }) {
                   {product.title}
                 </h3>
                 <div className="mt-auto">
-                  <p className="text-primary-600 dark:text-primary-400 font-bold text-base mb-1">
+                  <p className="text-orange-600 dark:text-orange-400 font-bold text-base mb-1">
                     {formatPrice(product.price)} ₫
                   </p>
                   <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">

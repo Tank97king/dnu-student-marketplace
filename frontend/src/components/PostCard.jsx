@@ -282,7 +282,7 @@ export default function PostCard({ post }) {
               <Link
                 key={index}
                 to={`/hashtags/${tag}`}
-                className="text-blue-500 dark:text-blue-400 text-sm hover:underline"
+                className="text-orange-500 dark:text-orange-400 text-sm hover:underline font-medium"
               >
                 #{tag}
               </Link>

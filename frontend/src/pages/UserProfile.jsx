@@ -431,7 +431,11 @@ export default function UserProfile() {
                           </p>
                           <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
                             <span>{formatDate(product.createdAt)}</span>
-                            <span>{product.location === 'Dormitory' ? '🏠 Ký túc xá' : product.location}</span>
+                            <span>
+                              {product.location === 'Campus' ? '🏫 Khuôn viên' :
+                               product.location === 'Dormitory' ? '🏠 Ký túc xá' :
+                               product.location === 'Nearby' ? '📍 Lân cận' : product.location}
+                            </span>
                           </div>
                         </div>
                       </Link>

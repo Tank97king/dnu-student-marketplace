@@ -175,9 +175,14 @@ async function indexKnowledgeBase(force = false) {
  * @param {number} topK - Số kết quả trả về
  * @returns {Promise<Array<{text: string, source: string, score: number}>>}
  */
-async function knowledgeSearch(queryText, topK = 3) {
+async function knowledgeSearch(query, topK = 3) {
   try {
-    const vector = await generateEmbedding(queryText);
+    let vector;
+    if (Array.isArray(query)) {
+      vector = query;
+    } else {
+      vector = await generateEmbedding(query);
+    }
     if (!vector) return [];
 
     const index = await getKnowledgeIndex();
@@ -229,7 +234,13 @@ function buildRAGContext(productHits, knowledgeHits, productDocs) {
     context += 'Dưới đây là danh sách sản phẩm phù hợp với yêu cầu của người dùng:\n';
     productDocs.forEach((p, i) => {
       const price = Number(p.price || 0).toLocaleString('vi-VN');
-      context += `${i + 1}. "${p.title}" - Giá: ${price} VNĐ - Danh mục: ${p.category} - Khu vực: ${p.location || 'N/A'}\n`;
+      const locationMap = {
+        'Campus': 'Khuôn viên trường',
+        'Dormitory': 'Ký túc xá',
+        'Nearby': 'Lân cận'
+      };
+      const locationVi = locationMap[p.location] || p.location || 'N/A';
+      context += `${i + 1}. "${p.title}" - Giá: ${price} VNĐ - Danh mục: ${p.category} - Khu vực: ${locationVi}\n`;
     });
     context += '\n';
   }

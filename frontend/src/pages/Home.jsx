@@ -366,7 +366,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-col items-center mb-10">
             <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-2 uppercase tracking-tight">Khám phá danh mục</h2>
-            <div className="h-1.5 w-24 bg-gradient-to-r from-primary-500 to-orange-500 rounded-full"></div>
+            <div className="h-1.5 w-24 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full"></div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
             {categories.map((category) => (
@@ -384,7 +384,7 @@ export default function Home() {
                     e.target.parentElement.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:3rem;background:#f9fafb">${category.icon}</div>`;
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-br from-primary-500/10 to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </Link>
             ))}
           </div>

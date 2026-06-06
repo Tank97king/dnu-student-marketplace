@@ -90,7 +90,7 @@ exports.validateVerifyOTP = [
     .isEmail()
     .withMessage('Email không hợp lệ')
     .normalizeEmail(),
-  body('verificationCode')
+  body('code')
     .trim()
     .isLength({ min: 6, max: 6 })
     .withMessage('Mã xác minh phải có 6 chữ số')

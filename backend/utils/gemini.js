@@ -12,6 +12,8 @@ let model = null;
 const MODEL_NAMES = [
   'gemini-2.5-flash',
   'gemini-2.0-flash',
+  'gemini-flash-latest',
+  'gemini-pro-latest',
   'gemini-1.5-flash',
   'gemini-1.5-pro',
   'gemini-2.5-pro'

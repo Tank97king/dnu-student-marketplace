@@ -4,6 +4,12 @@
 
 DNU Marketplace là một nền tảng web cho phép sinh viên Đại học Đại Nam mua bán trao đổi đồ dùng cũ (sách, đồ điện tử, nội thất, quần áo, v.v.) một cách an toàn và thuận tiện.
 
+## 🎓 Tài liệu Đồ án Tốt nghiệp
+
+Để hỗ trợ quá trình viết báo cáo và bảo vệ đồ án tốt nghiệp, dự án đã được bổ sung đầy đủ hệ thống tài liệu chi tiết:
+- 📝 **[Đề cương chi tiết đồ án (5 Chương)](./DE_CUONG_CHI_TIET.md)**: Hướng dẫn chi tiết bố cục, nội dung cần triển khai cho từng chương mục trong báo cáo đồ án tốt nghiệp.
+- 🏛️ **[Tài liệu Kiến trúc hệ thống](./KIEN_TRUC_HE_THONG.md)**: Bản vẽ kiến trúc tổng quan (Mermaid), mô hình cơ sở dữ liệu (22 Collections MongoDB) và các luồng quy trình nghiệp vụ chính (thanh toán QR động, Chatbot AI RAG, WebSockets).
+
 ## Tính năng chính
 
 ### Quản lý người dùng
@@ -538,6 +544,8 @@ MIT
 ---
 
 **📚 Tài liệu tham khảo:**
+- [DE_CUONG_CHI_TIET.md](./DE_CUONG_CHI_TIET.md) - Đề cương chi tiết đồ án tốt nghiệp 5 chương
+- [KIEN_TRUC_HE_THONG.md](./KIEN_TRUC_HE_THONG.md) - Tài liệu phân tích kiến trúc hệ thống và quy trình RAG
 - [LOGIC_MUA_HANG.md](./LOGIC_MUA_HANG.md) - Logic chi tiết về quy trình mua hàng
 - [GỢI_Ý_CẢI_THIỆN.md](./GỢI_Ý_CẢI_THIỆN.md) - Gợi ý cải thiện dự án
 - [HUONG_DAN_PUSH_GITHUB.md](./HUONG_DAN_PUSH_GITHUB.md) - Hướng dẫn push code lên GitHub

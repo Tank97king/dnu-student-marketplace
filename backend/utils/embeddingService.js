@@ -100,9 +100,14 @@ async function deleteProductEmbedding(productId) {
  * @param {number} topK - Số kết quả tối đa (mặc định 20)
  * @returns {Promise<Array<{productId: string, score: number}>>}
  */
-async function semanticSearch(queryText, topK = 20) {
+async function semanticSearch(query, topK = 20) {
   try {
-    const vector = await generateEmbedding(queryText);
+    let vector;
+    if (Array.isArray(query)) {
+      vector = query;
+    } else {
+      vector = await generateEmbedding(query);
+    }
     if (!vector) return [];
 
     const index = await getIndex();

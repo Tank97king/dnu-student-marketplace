@@ -55,38 +55,32 @@ export default function Layout({ children }) {
             {/* Left section: Logo and Navigation */}
             <div className="flex items-center flex-1">
               <Link to="/" className="flex items-center mr-10 group">
-                <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-primary-200 dark:shadow-none group-hover:rotate-12 transition-transform">
+                <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-orange-200 dark:shadow-none group-hover:rotate-12 transition-transform">
                   <span className="text-white font-black text-xl">D</span>
                 </div>
-                <h1 className="text-2xl font-black tracking-tighter text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                  DNU<span className="text-primary-600 dark:text-primary-400">Market</span>
+                <h1 className="text-2xl font-black tracking-tighter text-gray-900 dark:text-white group-hover:text-orange-500 dark:group-hover:text-orange-400 transition-colors">
+                  DNU<span className="text-orange-500 dark:text-orange-400">Market</span>
                 </h1>
               </Link>
               {isAuthenticated && (
                 <div className="hidden md:flex items-center space-x-6">
                   <Link 
                     to="/" 
-                    className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm font-medium"
+                    className="text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 transition-colors text-sm font-medium"
                   >
                     Trang chủ
                   </Link>
                   <Link 
                     to="/feed" 
-                    className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm font-medium"
+                    className="text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 transition-colors text-sm font-medium"
                   >
                     Mạng xã hội
                   </Link>
                   <Link 
                     to="/products" 
-                    className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm font-medium"
+                    className="text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 transition-colors text-sm font-medium"
                   >
                     Sản phẩm
-                  </Link>
-                  <Link 
-                    to="/explore" 
-                    className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm font-medium"
-                  >
-                    Khám phá
                   </Link>
                 </div>
               )}
@@ -118,7 +112,7 @@ export default function Layout({ children }) {
                   {/* Chat Icon */}
                   <Link 
                     to="/chat" 
-                    className="bg-gray-100 dark:bg-gray-700 rounded-lg w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    className="bg-gray-100 dark:bg-gray-700 rounded-lg w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 transition-colors"
                   >
                     <svg 
                       className="w-5 h-5" 
@@ -141,7 +135,7 @@ export default function Layout({ children }) {
                   {user?.isAdmin && (
                     <Link 
                       to="/admin" 
-                      className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm font-medium"
+                      className="text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 transition-colors text-sm font-medium"
                     >
                       Admin
                     </Link>
@@ -189,7 +183,7 @@ export default function Layout({ children }) {
             {/* Về DNU Marketplace */}
             <div className="space-y-6">
               <div>
-                <h3 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 mb-2">
+                <h3 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-amber-500 dark:from-orange-400 dark:to-amber-400 mb-2">
                   DNU Marketplace
                 </h3>
                 <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm mt-4">
@@ -221,7 +215,6 @@ export default function Layout({ children }) {
                   { name: 'Trang chủ', path: '/' },
                   { name: 'Sản phẩm mới', path: '/products' },
                   { name: 'Mạng xã hội', path: '/feed' },
-                  { name: 'Khám phá AI', path: '/explore' },
                   { name: 'Đăng bán nhanh', path: '/create-product' }
                 ].map((link) => (
                   <li key={link.path}>
@@ -279,8 +272,8 @@ export default function Layout({ children }) {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                   </div>
                   <div>
-                    <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-0.5">Email Hỗ trợ</p>
-                    <a href="mailto:support@dnu-marketplace.edu.vn" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors">support@dnu-marketplace.edu.vn</a>
+                    <p className="text-[11px] font-bold text-gray-400 dark:text-gray-550 uppercase tracking-wider mb-0.5">Email Hỗ trợ</p>
+                    <a href="mailto:dinhthethanh73@gmail.com" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors">dinhthethanh73@gmail.com</a>
                   </div>
                 </li>
                 <li className="flex items-start group">
@@ -301,11 +294,6 @@ export default function Layout({ children }) {
             <p className="text-sm font-medium text-gray-400 dark:text-gray-500 text-center md:text-left">
               &copy; {new Date().getFullYear()} DNU Marketplace. Mua bán đồ dùng cũ nội bộ.
             </p>
-            <div className="flex items-center space-x-2 bg-white dark:bg-gray-800 px-4 py-2.5 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
-              <span className="text-[13px] font-bold text-gray-500 dark:text-gray-400 tracking-wide uppercase">Coded with</span>
-              <span className="text-red-500 animate-pulse text-sm">❤️</span>
-              <span className="text-[13px] font-bold text-gray-500 dark:text-gray-400 tracking-wide uppercase">for DNU Students</span>
-            </div>
           </div>
         </div>
       </footer>

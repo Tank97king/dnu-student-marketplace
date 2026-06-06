@@ -188,7 +188,18 @@ export default function MyPromotions() {
                   )}
                   {coupon.applicableCategories && coupon.applicableCategories.length > 0 && (
                     <div>
-                      <span className="font-medium">Danh mục:</span> {coupon.applicableCategories.join(', ')}
+                      <span className="font-medium">Danh mục:</span> {coupon.applicableCategories.map(cat => {
+                        const catLabels = {
+                          'Books': 'Sách',
+                          'Electronics': 'Điện tử',
+                          'Furniture': 'Nội thất',
+                          'Clothing': 'Quần áo',
+                          'Stationery': 'Văn phòng phẩm',
+                          'Sports': 'Thể thao',
+                          'Other': 'Khác'
+                        };
+                        return catLabels[cat] || cat;
+                      }).join(', ')}
                     </div>
                   )}
                 </div>

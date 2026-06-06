@@ -71,17 +71,17 @@ export default function RevenueStats() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900/40 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Modern Header Card */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-gray-900 via-indigo-950 to-purple-950 text-white rounded-3xl p-6 sm:p-8 shadow-2xl mb-8">
+        <div className="relative overflow-hidden bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 text-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-orange-500/20 mb-8">
           <div className="absolute inset-0 bg-grid-white/[0.03] bg-[size:20px_20px]" />
-          <div className="absolute -top-24 -right-20 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
-          <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl" />
+          <div className="absolute -top-24 -right-20 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-yellow-300/10 rounded-full blur-3xl" />
           <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
             <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-indigo-300">Báo cáo tài chính</span>
-              <h1 className="text-3xl font-black mt-1 bg-gradient-to-r from-white via-indigo-100 to-indigo-200 bg-clip-text text-transparent">THỐNG KÊ DOANH THU</h1>
-              <p className="text-indigo-200/80 text-sm mt-1">Phân tích doanh số, hiệu suất bán hàng và giao dịch</p>
+              <span className="text-xs font-bold uppercase tracking-widest text-orange-100">Báo cáo tài chính</span>
+              <h1 className="text-3xl font-black mt-1 text-white drop-shadow-sm leading-normal">THỐNG KÊ DOANH THU</h1>
+              <p className="text-orange-50/90 text-sm mt-1">Phân tích doanh số, hiệu suất bán hàng và giao dịch</p>
             </div>
-            <Link to="/admin" className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-xl transition-all duration-300 font-medium text-sm backdrop-blur-md">
+            <Link to="/admin" className="flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl transition-all duration-300 font-medium text-sm backdrop-blur-md">
               ← Quay lại Dashboard
             </Link>
           </div>

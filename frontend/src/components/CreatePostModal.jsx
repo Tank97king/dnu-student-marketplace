@@ -126,7 +126,7 @@ export default function CreatePostModal({ onClose, onSuccess }) {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded flex items-center justify-center hover:border-blue-500 transition-colors"
+                  className="w-full h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded flex items-center justify-center hover:border-orange-500 hover:bg-orange-50/10 dark:hover:bg-orange-950/10 transition-colors"
                 >
                   <PhotoIcon className="w-8 h-8 text-gray-400" />
                 </button>
@@ -151,7 +151,7 @@ export default function CreatePostModal({ onClose, onSuccess }) {
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder="Viết mô tả... (có thể dùng #hashtag và @mention, Enter để xuống dòng)"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-200 resize-y"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-200 resize-y"
               rows="4"
               style={{ whiteSpace: 'pre-wrap' }}
             />
@@ -167,7 +167,7 @@ export default function CreatePostModal({ onClose, onSuccess }) {
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="Nhập giá..."
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
             />
           </div>
 
@@ -180,7 +180,7 @@ export default function CreatePostModal({ onClose, onSuccess }) {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
               >
                 {categories.map(cat => (
                   <option key={cat.value} value={cat.value}>{cat.label}</option>
@@ -194,7 +194,7 @@ export default function CreatePostModal({ onClose, onSuccess }) {
               <select
                 value={condition}
                 onChange={(e) => setCondition(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
               >
                 {conditions.map(cond => (
                   <option key={cond.value} value={cond.value}>{cond.label}</option>
@@ -208,7 +208,7 @@ export default function CreatePostModal({ onClose, onSuccess }) {
               <select
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-200"
               >
                 {locations.map(loc => (
                   <option key={loc.value} value={loc.value}>{loc.label}</option>
@@ -229,7 +229,7 @@ export default function CreatePostModal({ onClose, onSuccess }) {
             <button
               type="submit"
               disabled={loading || images.length === 0}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+              className="px-5 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 shadow-md shadow-orange-500/10 hover:shadow-orange-500/25 active:scale-[0.98]"
             >
               {loading ? 'Đang đăng...' : 'Đăng bài'}
             </button>

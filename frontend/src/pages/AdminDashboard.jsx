@@ -99,6 +99,13 @@ function AdminDashboard() {
   })
   const [couponFilter, setCouponFilter] = useState('all')
 
+  // Sold products search and filter states
+  const [soldProductsSearch, setSoldProductsSearch] = useState('')
+  const [soldProductsFilter, setSoldProductsFilter] = useState('all')
+  const [selectedReceipt, setSelectedReceipt] = useState(null)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [receiptZoom, setReceiptZoom] = useState(1)
+
   // Fetch current user data to get latest isSuperAdmin status
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -677,24 +684,24 @@ function AdminDashboard() {
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       {/* Modern Gradient Header */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-gray-900 via-indigo-950 to-purple-950 text-white rounded-3xl p-6 sm:p-8 shadow-2xl mb-8">
+      <div className="relative overflow-hidden bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 text-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-orange-500/20 mb-8">
         <div className="absolute inset-0 bg-grid-white/[0.03] bg-[size:20px_20px]" />
-        <div className="absolute -top-24 -right-20 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl" />
+        <div className="absolute -top-24 -right-20 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-yellow-300/10 rounded-full blur-3xl" />
         <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
           <div>
-            <span className="text-xs font-bold uppercase tracking-widest text-indigo-300">Hệ thống quản trị</span>
-            <h1 className="text-3xl sm:text-4xl font-black mt-1 bg-gradient-to-r from-white via-indigo-100 to-indigo-200 bg-clip-text text-transparent">BẢNG ĐIỀU KHIỂN</h1>
-            <p className="text-indigo-200/80 text-sm mt-1">Hôm nay là {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <span className="text-xs font-bold uppercase tracking-widest text-orange-100">Hệ thống quản trị</span>
+            <h1 className="text-3xl sm:text-4xl font-black mt-1 text-white drop-shadow-sm leading-normal">BẢNG ĐIỀU KHIỂN</h1>
+            <p className="text-orange-50/90 text-sm mt-1">Hôm nay là {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
           <div className="flex flex-wrap gap-2.5">
-            <Link to="/admin/revenue" className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600/30 hover:bg-indigo-650/40 border border-indigo-500/30 text-indigo-100 rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
+            <Link to="/admin/revenue" className="flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
               <span>📊</span> Thống kê doanh thu
             </Link>
-            <Link to="/admin/payments" className="flex items-center gap-2 px-4 py-2.5 bg-blue-600/30 hover:bg-blue-650/40 border border-blue-500/30 text-blue-100 rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
+            <Link to="/admin/payments" className="flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
               <span>💳</span> Quản lý thanh toán
             </Link>
-            <Link to="/admin/payments" state={{ filter: 'need_payout' }} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600/30 hover:bg-emerald-650/40 border border-emerald-500/30 text-emerald-100 rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
+            <Link to="/admin/payments" state={{ filter: 'need_payout' }} className="flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
               <span>💸</span> Trả tiền Seller
               {payments.filter(p => p.status === 'confirmed' && !p.sellerPaid).length > 0 && (
                 <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1 animate-pulse">
@@ -703,7 +710,7 @@ function AdminDashboard() {
               )}
             </Link>
             {isSuperAdmin && (
-              <Link to="/admin/bankqr" className="flex items-center gap-2 px-4 py-2.5 bg-green-600/30 hover:bg-green-650/40 border border-green-500/30 text-green-100 rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
+              <Link to="/admin/bankqr" className="flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl transition-all duration-300 backdrop-blur-md font-medium text-sm">
                 <span>🏦</span> QR Code
               </Link>
             )}
@@ -717,6 +724,7 @@ function AdminDashboard() {
           { id: 'overview', label: 'Tổng quan', icon: '📊' },
           { id: 'pending', label: 'Sản phẩm chờ duyệt', icon: '🕒', badge: products.length },
           { id: 'pending_payments', label: 'Giao dịch chờ duyệt', icon: '💳', badge: payments.filter(p => p.status === 'pending').length },
+          { id: 'sold_products', label: 'Sản phẩm đã bán', icon: '🛍️', badge: orders.filter(o => ['confirmed', 'picked_up', 'completed'].includes(o.status)).length },
           { id: 'reports', label: 'Báo cáo vi phạm', icon: '🚨', badge: reportedProducts.length },
           { id: 'users', label: 'Người dùng', icon: '👥' },
           { id: 'coupons', label: 'Mã giảm giá', icon: '🎟️' },
@@ -731,6 +739,7 @@ function AdminDashboard() {
               if (tab.id === 'overview') fetchStats()
               if (tab.id === 'pending') fetchPendingProducts()
               if (tab.id === 'pending_payments') fetchPayments()
+              if (tab.id === 'sold_products') fetchOrders()
               if (tab.id === 'reports') fetchReportedProducts()
               if (tab.id === 'users') fetchUsers()
               if (tab.id === 'coupons') fetchCoupons()
@@ -982,6 +991,232 @@ function AdminDashboard() {
               </div>
             ) : (
               <p className="text-gray-555 text-center py-8">Tuyệt vời! Không có giao dịch nào đang chờ duyệt 🎉</p>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'sold_products' && (
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-xl border border-gray-150 dark:border-gray-700/50">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-950 dark:text-white">Sản phẩm đã bán</h2>
+                <p className="text-xs text-gray-450 dark:text-gray-400 mt-1 font-medium">Quản lý và đối soát biên lai chuyển khoản đơn hàng</p>
+              </div>
+
+              {/* Search & Filter Toolbar */}
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <div className="relative flex-1 sm:w-64">
+                  <input
+                    type="text"
+                    placeholder="Tìm theo sản phẩm, mã GD, người mua..."
+                    value={soldProductsSearch}
+                    onChange={(e) => setSoldProductsSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-900 dark:text-white text-sm"
+                  />
+                  <svg className="w-5 h-5 text-gray-400 dark:text-gray-550 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+
+                <select
+                  value={soldProductsFilter}
+                  onChange={(e) => setSoldProductsFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-900 dark:text-white cursor-pointer font-bold text-gray-700 dark:text-gray-200"
+                >
+                  <option value="all">Tất cả sản phẩm đã bán ({orders.filter(o => ['confirmed', 'picked_up', 'completed'].includes(o.status)).length})</option>
+                  <option value="confirmed">Đã xác nhận ({orders.filter(o => o.status === 'confirmed').length})</option>
+                  <option value="picked_up">Đang giao hàng ({orders.filter(o => o.status === 'picked_up').length})</option>
+                  <option value="completed">Đã hoàn thành ({orders.filter(o => o.status === 'completed').length})</option>
+                  <option value="return_requested">Yêu cầu trả hàng ({orders.filter(o => o.status === 'return_requested').length})</option>
+                  <option value="returned">Đã trả hàng ({orders.filter(o => o.status === 'returned').length})</option>
+                  <option value="cancelled">Đã hủy ({orders.filter(o => o.status === 'cancelled').length})</option>
+                </select>
+              </div>
+            </div>
+
+            {/* List of Sold Products */}
+            {orders.filter(order => {
+              const orderStatus = order.status;
+              if (soldProductsFilter === 'all') {
+                if (!['confirmed', 'picked_up', 'completed'].includes(orderStatus)) return false;
+              } else {
+                if (orderStatus !== soldProductsFilter) return false;
+              }
+
+              if (soldProductsSearch.trim() !== '') {
+                const q = soldProductsSearch.toLowerCase();
+                const productTitle = order.productId?.title?.toLowerCase() || '';
+                const buyerName = order.buyerId?.name?.toLowerCase() || '';
+                const buyerPhone = order.buyerId?.phone?.toLowerCase() || '';
+                const sellerName = order.sellerId?.name?.toLowerCase() || '';
+                const sellerPhone = order.sellerId?.phone?.toLowerCase() || '';
+                const transactionCode = order.payment?.transactionCode?.toLowerCase() || '';
+
+                const matchProduct = productTitle.includes(q);
+                const matchBuyer = buyerName.includes(q) || buyerPhone.includes(q);
+                const matchSeller = sellerName.includes(q) || sellerPhone.includes(q);
+                const matchTx = transactionCode.includes(q);
+
+                return matchProduct || matchBuyer || matchSeller || matchTx;
+              }
+              return true;
+            }).length > 0 ? (
+              <div className="space-y-4">
+                {orders.filter(order => {
+                  const orderStatus = order.status;
+                  if (soldProductsFilter === 'all') {
+                    if (!['confirmed', 'picked_up', 'completed'].includes(orderStatus)) return false;
+                  } else {
+                    if (orderStatus !== soldProductsFilter) return false;
+                  }
+
+                  if (soldProductsSearch.trim() !== '') {
+                    const q = soldProductsSearch.toLowerCase();
+                    const productTitle = order.productId?.title?.toLowerCase() || '';
+                    const buyerName = order.buyerId?.name?.toLowerCase() || '';
+                    const buyerPhone = order.buyerId?.phone?.toLowerCase() || '';
+                    const sellerName = order.sellerId?.name?.toLowerCase() || '';
+                    const sellerPhone = order.sellerId?.phone?.toLowerCase() || '';
+                    const transactionCode = order.payment?.transactionCode?.toLowerCase() || '';
+
+                    const matchProduct = productTitle.includes(q);
+                    const matchBuyer = buyerName.includes(q) || buyerPhone.includes(q);
+                    const matchSeller = sellerName.includes(q) || sellerPhone.includes(q);
+                    const matchTx = transactionCode.includes(q);
+
+                    return matchProduct || matchBuyer || matchSeller || matchTx;
+                  }
+                  return true;
+                }).map((order) => {
+                  const payment = order.payment;
+                  const paymentProof = payment?.paymentProof;
+
+                  return (
+                    <div key={order._id} className="border border-gray-150 dark:border-gray-750 hover:border-indigo-100 dark:hover:border-indigo-900/30 rounded-2xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-gray-50/30 dark:bg-gray-900/10 transition-all duration-300">
+                      
+                      {/* Left: Product Details */}
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="w-20 h-20 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-750 bg-gray-100 flex-shrink-0">
+                          {order.productId?.images?.[0] ? (
+                            <img
+                              src={order.productId.images[0]}
+                              alt={order.productId.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-2xl bg-indigo-50 text-indigo-550">📦</div>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <h3 className="font-bold text-gray-900 dark:text-white line-clamp-1 text-base">
+                            {order.productId?.title || 'Sản phẩm đã gỡ'}
+                          </h3>
+                          <div className="flex flex-wrap items-center gap-x-2 text-xs text-gray-500">
+                            <span>Phân loại: <strong>{order.productId?.category || 'Khác'}</strong></span>
+                            <span>•</span>
+                            <span>Ngày mua: <strong>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</strong></span>
+                          </div>
+                          <div className="text-sm font-black text-red-650 dark:text-red-400 mt-1">
+                            {new Intl.NumberFormat('vi-VN').format(order.finalPrice || 0)} ₫
+                            {order.discountAmount > 0 && (
+                              <span className="text-[10px] text-gray-400 line-through ml-2 font-normal">
+                                {new Intl.NumberFormat('vi-VN').format(order.finalPrice + order.discountAmount)} ₫
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Middle: Partner Details */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 border-t lg:border-t-0 lg:border-l lg:border-r border-gray-100 dark:border-gray-800 px-0 lg:px-6 py-4 lg:py-0">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Người bán</p>
+                          <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{order.sellerId?.name || 'N/A'}</p>
+                          <p className="text-xs text-gray-500">{order.sellerId?.phone || 'Chưa cung cấp SĐT'}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-gray-400 dark:text-gray-550 uppercase tracking-wide">Người mua</p>
+                          <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{order.shippingAddress?.fullName || order.buyerId?.name || 'N/A'}</p>
+                          <p className="text-xs text-gray-505">{order.shippingAddress?.phone || order.buyerId?.phone || 'Chưa cung cấp SĐT'}</p>
+                        </div>
+                      </div>
+
+                      {/* Right: Payment & Status details */}
+                      <div className="flex flex-row lg:flex-col items-center lg:items-end justify-between gap-4 w-full lg:w-48 border-t lg:border-t-0 pt-4 lg:pt-0 border-gray-100 dark:border-gray-800">
+                        <div className="space-y-1.5 lg:text-right">
+                          {payment?.transactionCode ? (
+                            <span className="font-mono font-bold text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-650 dark:text-indigo-400 px-2 py-0.5 rounded">
+                              {payment.transactionCode}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-450 italic">Không có mã GD</span>
+                          )}
+                          
+                          <div className="flex lg:justify-end items-center gap-1.5 mt-1">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                              order.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                              order.status === 'picked_up' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' :
+                              order.status === 'confirmed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                              order.status === 'return_requested' ? 'bg-orange-105 text-orange-850 dark:bg-orange-900/30 dark:text-orange-400' :
+                              order.status === 'returned' ? 'bg-red-50 text-red-650 dark:bg-red-950/20 dark:text-red-400' :
+                              'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                            }`}>
+                              {order.status === 'completed' ? 'Thành công' :
+                               order.status === 'picked_up' ? 'Đang giao' :
+                               order.status === 'confirmed' ? 'Đã duyệt' :
+                               order.status === 'return_requested' ? 'Yêu cầu hoàn' :
+                               order.status === 'returned' ? 'Đã trả hàng' : 'Đã hủy'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Thumbnail or Payment Proof preview */}
+                        <div className="flex-shrink-0">
+                          {paymentProof ? (
+                            <div className="flex flex-col items-center">
+                              <div className="relative group w-14 h-20 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center p-0.5 shadow-sm hover:shadow-md transition-shadow">
+                                <img
+                                  src={paymentProof}
+                                  alt="Receipt proof"
+                                  className="h-full w-full object-contain rounded"
+                                />
+                                <div
+                                  onClick={() => {
+                                    setSelectedReceipt(order);
+                                    setReceiptZoom(1);
+                                    setShowReceiptModal(true);
+                                  }}
+                                  className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity cursor-pointer text-center px-1"
+                                >
+                                  Xem biên lai
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setSelectedReceipt(order);
+                                  setReceiptZoom(1);
+                                  setShowReceiptModal(true);
+                                }}
+                                className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline mt-1 cursor-pointer bg-transparent border-0"
+                              >
+                                📷 Xem ảnh
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-gray-400 italic">Không có biên lai</span>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-12 text-center text-gray-500 dark:text-gray-400 border border-dashed border-gray-200 dark:border-gray-750 rounded-3xl bg-gray-50/30 dark:bg-gray-900/10">
+                <span className="text-4xl block mb-2">🔍</span>
+                Không tìm thấy sản phẩm đã bán nào phù hợp.
+              </div>
             )}
           </div>
         )}
@@ -2319,29 +2554,40 @@ function AdminDashboard() {
               <div>
                 <label className="block text-sm font-medium mb-1">Danh mục áp dụng</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {['Books', 'Electronics', 'Furniture', 'Clothing', 'Stationery', 'Sports', 'Other'].map(cat => (
-                    <label key={cat} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={couponFormData.applicableCategories.includes(cat)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setCouponFormData({
-                              ...couponFormData,
-                              applicableCategories: [...couponFormData.applicableCategories, cat]
-                            })
-                          } else {
-                            setCouponFormData({
-                              ...couponFormData,
-                              applicableCategories: couponFormData.applicableCategories.filter(c => c !== cat)
-                            })
-                          }
-                        }}
-                        className="mr-2"
-                      />
-                      <span className="text-sm">{cat}</span>
-                    </label>
-                  ))}
+                  {['Books', 'Electronics', 'Furniture', 'Clothing', 'Stationery', 'Sports', 'Other'].map(cat => {
+                    const catLabels = {
+                      'Books': 'Sách',
+                      'Electronics': 'Điện tử',
+                      'Furniture': 'Nội thất',
+                      'Clothing': 'Quần áo',
+                      'Stationery': 'Văn phòng phẩm',
+                      'Sports': 'Thể thao',
+                      'Other': 'Khác'
+                    };
+                    return (
+                      <label key={cat} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={couponFormData.applicableCategories.includes(cat)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setCouponFormData({
+                                ...couponFormData,
+                                applicableCategories: [...couponFormData.applicableCategories, cat]
+                              })
+                            } else {
+                              setCouponFormData({
+                                ...couponFormData,
+                                applicableCategories: couponFormData.applicableCategories.filter(c => c !== cat)
+                              })
+                            }
+                          }}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">{catLabels[cat] || cat}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -2783,6 +3029,104 @@ function AdminDashboard() {
                   Đóng
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Viewer Modal */}
+      {showReceiptModal && selectedReceipt && (
+        <div className="fixed inset-0 bg-black bg-opacity-85 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-xl w-full shadow-2xl border border-gray-150 dark:border-gray-700/50 overflow-hidden flex flex-col my-8 max-h-[90vh]">
+            <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/20">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Chi tiết biên lai chuyển tiền</h3>
+                <p className="text-xs text-gray-450 dark:text-gray-400 mt-0.5 font-medium">Đối chiếu thông tin chuyển khoản từ người mua</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowReceiptModal(false)
+                  setSelectedReceipt(null)
+                }}
+                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white cursor-pointer transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto flex-1 space-y-4">
+              {/* Transaction Info Summary Card */}
+              <div className="bg-gray-55/50 dark:bg-gray-900/60 p-4 rounded-2xl border border-gray-150 dark:border-gray-850 text-xs space-y-2">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                  <p className="text-gray-400 font-medium">Sản phẩm:</p>
+                  <p className="font-bold text-gray-800 dark:text-gray-200 text-right line-clamp-1">{selectedReceipt.productId?.title || 'Sản phẩm đã gỡ'}</p>
+
+                  <p className="text-gray-400 font-medium">Mã giao dịch:</p>
+                  <p className="font-mono font-bold text-indigo-650 dark:text-indigo-400 text-right">{selectedReceipt.payment?.transactionCode || 'N/A'}</p>
+
+                  <p className="text-gray-400 font-medium">Số tiền đơn hàng:</p>
+                  <p className="font-black text-red-650 dark:text-red-400 text-right text-sm">{new Intl.NumberFormat('vi-VN').format(selectedReceipt.finalPrice || 0)} ₫</p>
+
+                  <p className="text-gray-400 font-medium">Người mua:</p>
+                  <p className="font-bold text-gray-800 dark:text-gray-200 text-right">{selectedReceipt.shippingAddress?.fullName || selectedReceipt.buyerId?.name || 'N/A'}</p>
+
+                  <p className="text-gray-400 font-medium">SĐT Người mua:</p>
+                  <p className="font-bold text-gray-800 dark:text-gray-200 text-right">{selectedReceipt.shippingAddress?.phone || selectedReceipt.buyerId?.phone || 'N/A'}</p>
+                </div>
+              </div>
+
+              {/* Zoom Controls */}
+              <div className="flex justify-center items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReceiptZoom(prev => Math.max(prev - 0.25, 0.5))}
+                  className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold transition-all cursor-pointer border-0"
+                >
+                  🔍- Thu nhỏ
+                </button>
+                <span className="text-xs font-bold text-gray-500 w-12 text-center">{Math.round(receiptZoom * 100)}%</span>
+                <button
+                  type="button"
+                  onClick={() => setReceiptZoom(prev => Math.min(prev + 0.25, 3))}
+                  className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold transition-all cursor-pointer border-0"
+                >
+                  🔍+ Phóng to
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReceiptZoom(1)}
+                  className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold transition-all cursor-pointer border-0"
+                >
+                  Đặt lại
+                </button>
+              </div>
+
+              {/* Receipt Image Container */}
+              <div className="border dark:border-gray-700 rounded-2xl overflow-hidden bg-gray-900 max-h-[450px] flex items-center justify-center p-4 relative">
+                <div 
+                  className="w-full h-[380px] overflow-auto flex items-center justify-center scrollbar-thin"
+                >
+                  <img
+                    src={selectedReceipt.payment?.paymentProof}
+                    alt="Receipt Image"
+                    className="max-h-full max-w-full object-contain transition-transform duration-200 rounded-lg"
+                    style={{ transform: `scale(${receiptZoom})` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReceiptModal(false)
+                  setSelectedReceipt(null)
+                }}
+                className="bg-indigo-650 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-md shadow-indigo-500/10 border-0"
+              >
+                Đóng biên lai
+              </button>
             </div>
           </div>
         </div>

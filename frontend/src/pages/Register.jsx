@@ -71,7 +71,7 @@ export default function Register() {
 
           <div className="flex items-center gap-4 mb-8 mt-12">
             <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-xl shadow-orange-500/20">
-              <span className="text-3xl font-black text-indigo-900">D</span>
+              <span className="text-3xl font-black text-orange-500">D</span>
             </div>
             <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-md">
               DNU<span className="text-orange-500">Market</span>
@@ -95,10 +95,10 @@ export default function Register() {
           
           {/* Mobile Header */}
           <div className="md:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-indigo-900 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
               <span className="text-xl font-black text-white">D</span>
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-indigo-900 dark:text-white">
+            <h1 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
               DNU<span className="text-orange-500">Market</span>
             </h1>
           </div>

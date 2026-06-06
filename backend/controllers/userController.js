@@ -502,7 +502,7 @@ exports.getSellerStats = async (req, res) => {
       { $unwind: '$order' },
       {
         $match: {
-          'order.sellerId': mongoose.Types.ObjectId(userId)
+          'order.sellerId': new mongoose.Types.ObjectId(userId)
         }
       },
       {
@@ -536,7 +536,7 @@ exports.getSellerStats = async (req, res) => {
       { $unwind: '$order' },
       {
         $match: {
-          'order.sellerId': mongoose.Types.ObjectId(userId)
+          'order.sellerId': new mongoose.Types.ObjectId(userId)
         }
       },
       {
@@ -570,7 +570,7 @@ exports.getSellerStats = async (req, res) => {
       { $unwind: '$order' },
       {
         $match: {
-          'order.sellerId': mongoose.Types.ObjectId(userId)
+          'order.sellerId': new mongoose.Types.ObjectId(userId)
         }
       },
       {
@@ -614,7 +614,7 @@ exports.getSellerStats = async (req, res) => {
     const reviewStats = await Review.aggregate([
       {
         $match: {
-          reviewedUserId: mongoose.Types.ObjectId(userId),
+          reviewedUserId: new mongoose.Types.ObjectId(userId),
           ...dateFilter
         }
       },
@@ -670,7 +670,7 @@ exports.getSellerStats = async (req, res) => {
       { $unwind: '$order' },
       {
         $match: {
-          'order.sellerId': mongoose.Types.ObjectId(userId)
+          'order.sellerId': new mongoose.Types.ObjectId(userId)
         }
       },
       {

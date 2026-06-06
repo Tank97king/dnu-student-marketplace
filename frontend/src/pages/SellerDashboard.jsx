@@ -451,7 +451,7 @@ export default function SellerDashboard() {
           </div>
         </div>
 
-        {stats ? (
+        {stats && activeTab !== 'bank' ? (
           <>
             {/* Overview Tab */}
             {activeTab === 'overview' && (
