@@ -9,6 +9,13 @@
   <img src="https://img.shields.io/badge/License-MIT-yellow" />
 </p>
 
+> [!IMPORTANT]
+> ### 🔑 TÀI KHOẢN DEMO HỆ THỐNG (Khuyến nghị dùng để test)
+> Bạn có thể dùng các tài khoản đã được tạo sẵn sau để đăng nhập và kiểm tra nhanh các tính năng:
+> * **Tài khoản Người bán (Seller):** `seller_test@dnu.edu.vn` / Mật khẩu: `123456`
+> * **Tài khoản Người mua (Buyer):** `buyer_test@dnu.edu.vn` / Mật khẩu: `123456`
+> * **Tài khoản Admin (Quản trị):** `admin_test@dnu.edu.vn` / Mật khẩu: `123456`
+
 ---
 
 ## 📖 Mô tả dự án
